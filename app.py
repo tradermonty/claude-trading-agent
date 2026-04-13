@@ -233,7 +233,7 @@ def _stream_response(
 ) -> tuple[str, list[dict[str, str]]]:
     """Fetch and progressively render a single assistant response.
 
-    Returns (response_text, has_file_output).
+    Returns (response_text, created_files).
     """
     final_text_parts: list[str] = []
     created_files: list[dict[str, str]] = []

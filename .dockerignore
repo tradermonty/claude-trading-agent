@@ -1,5 +1,6 @@
 .env
 .git/
+.github/
 .venv/
 .DS_Store
 .agent_cache.json
@@ -7,11 +8,17 @@
 .mypy_cache/
 .ruff_cache/
 __pycache__/
+htmlcov/
+.coverage
+.secrets.baseline
+.pre-commit-config.yaml
 reports/
 dist/
 sample_*.py
 *.pyc
 .claude/
-Dockerfile
-docker-compose.yml
 README.md
+README.ja.md
+CLAUDE.md
+conftest.py
+requirements-dev.txt
