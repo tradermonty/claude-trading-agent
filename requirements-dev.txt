@@ -1,2 +1,2 @@
--r requirements.txt
-pytest>=7.0.0
+# Dev dependencies — canonical source is pyproject.toml
+-e ".[dev]"

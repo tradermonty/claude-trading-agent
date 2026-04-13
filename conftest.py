@@ -14,7 +14,7 @@ of sys.path.
 import sys
 from pathlib import Path
 
-_SKILLS_MARKER = f"{Path.cwd()}/skills/"
+_SKILLS_MARKER = f"{Path(__file__).resolve().parent}/skills/"
 
 # Module basenames that exist in more than one skill's scripts/ directory.
 _CONFLICTING_BASENAMES = frozenset(

@@ -103,7 +103,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Dependencies
-pip install -r requirements.txt
+pip install -e .
 
 # Environment variables
 cp .env.example .env

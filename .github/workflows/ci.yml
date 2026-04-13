@@ -43,6 +43,14 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
+      # Framework tests (agent/, config/, skills/registry.py)
+      - name: Test framework (agent + config)
+        run: >
+          python -m pytest agent/tests/ config/tests/ -v
+          --cov=agent
+          --cov=config
+          --cov-report=term-missing
+
       # Run each skill's tests in isolation to avoid module name collisions
       # (scorer.py, calculators/, report_generator.py exist in multiple skills).
       - name: Test breakout-trade-planner

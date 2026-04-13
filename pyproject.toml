@@ -57,6 +57,8 @@ ignore = [
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 testpaths = [
+    "agent/tests",
+    "config/tests",
     "skills/breakout-trade-planner/scripts/tests",
     "skills/earnings-calendar/scripts/tests",
     "skills/economic-calendar-fetcher/scripts/tests",
