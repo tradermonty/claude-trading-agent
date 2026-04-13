@@ -151,7 +151,7 @@ APP_ICON = "🤖"
 REQUESTS_PER_MINUTE_LIMIT = _parse_positive_int(
     os.getenv("REQUESTS_PER_MINUTE_LIMIT", "20"), default=20
 )
-UI_LOCALE: UiLocale = _parse_ui_locale(os.getenv("APP_LOCALE", "ja").strip().lower())
+UI_LOCALE: UiLocale = _parse_ui_locale(os.getenv("APP_LOCALE", "en").strip().lower())
 APP_LOG_FORMAT: LogFormat = _parse_log_format(os.getenv("APP_LOG_FORMAT", "text").strip().lower())
 APP_LOG_LEVEL: LogLevel = _parse_log_level(os.getenv("APP_LOG_LEVEL", "INFO").strip().upper())
 
