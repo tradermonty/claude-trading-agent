@@ -1,6 +1,8 @@
 # Trade Assistant
 
-A US equity trading assistant built on the Claude Managed Agents API. Chat via Streamlit UI or CLI to invoke 10 specialized analysis skills for data-driven investment research.
+**A sample project demonstrating how to build a full-featured AI agent using [Claude Managed Agents](https://docs.anthropic.com/en/docs/agents-and-tools/managed-agents)** — Anthropic's cloud-hosted agent runtime with built-in code execution, web access, and file management.
+
+This reference implementation pairs a Streamlit chat UI with 10 specialized trading analysis skills to show how to wire up Skills, Agents, Environments, and Sessions into a working application. Use it as a starting point for your own Managed Agents project — the trading domain is just one example.
 
 [日本語版 README はこちら](README.ja.md)
 

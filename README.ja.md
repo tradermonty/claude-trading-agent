@@ -2,7 +2,7 @@
 
 [English README](README.md)
 
-Claude Managed Agents API を活用した米国株トレーディングアシスタント。Streamlit チャット UI から 10 種類の専門スキルを呼び出し、データドリブンな投資分析を行います。
+**[Claude Managed Agents](https://docs.anthropic.com/en/docs/agents-and-tools/managed-agents) を使った AI エージェント構築のサンプルプロジェクトです。** Anthropic が提供するクラウドホスト型エージェントランタイム（コード実行・Web アクセス・ファイル管理を内蔵）を活用し、Streamlit チャット UI + 10 種類のトレーディング分析スキルを組み合わせた実用的なリファレンス実装です。トレーディングはあくまで題材の一例 — Skills / Agent / Environment / Session の接続パターンを学び、自分のプロジェクトの出発点としてお使いください。
 
 > **Disclaimer**: 本ツールは教育目的の分析ツールです。投資助言ではありません。
 
