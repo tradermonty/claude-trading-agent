@@ -8,6 +8,16 @@ This reference implementation pairs a Streamlit chat UI with 10 specialized trad
 
 > **Disclaimer**: This tool is for educational purposes only. It does not constitute financial advice.
 
+> **Cost Warning**: This app uses the Anthropic API with **pay-per-use billing**. Each chat message and skill execution incurs token costs. Typical cost estimates:
+>
+> | Action | Estimated Cost |
+> |--------|---------------|
+> | Simple chat message | ~$0.01–0.05 |
+> | Single skill run (e.g. `/ftd-detector`) | ~$0.10–0.50 |
+> | Full workflow (5+ skills chained) | ~$1.00–3.00 |
+>
+> Costs depend on the model (`claude-sonnet-4-6` by default), prompt size, and how much code the agent executes. Monitor your usage at [console.anthropic.com](https://console.anthropic.com/). Set billing alerts to avoid surprises.
+
 > **Note**: The Managed Agents API is in beta. Identifiers such as `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
 
 ## Features
