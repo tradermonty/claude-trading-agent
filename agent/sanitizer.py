@@ -33,8 +33,9 @@ def sanitize(text: str) -> str:
     for secret in _KNOWN_SECRETS:
         text = text.replace(secret, "[REDACTED_API_KEY]")
     text = _RE_ANTHROPIC_KEY.sub("[REDACTED_API_KEY]", text)
-    text = _RE_LONG_TOKEN.sub("[REDACTED_TOKEN]", text)
+    # Paths first — otherwise the long-token regex swallows path strings
     text = _RE_ABS_PATH.sub(_redact_abs_path, text)
+    text = _RE_LONG_TOKEN.sub("[REDACTED_TOKEN]", text)
     return text
 
 
