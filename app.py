@@ -92,7 +92,7 @@ _CUSTOM_CSS = """
 [data-testid="stChatMessage"] h2 { font-size: 1.2rem !important; }
 [data-testid="stChatMessage"] h3 { font-size: 1.05rem !important; }
 [data-testid="stChatMessage"] p { margin-bottom: 0.4em !important; }
-.stMainBlockContainer { padding-top: 1.5rem !important; }
+.stMainBlockContainer { padding-top: 3rem !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 </style>
 """
@@ -347,8 +347,10 @@ def render_app() -> None:
                 key=f"dl_{idx}_{fi}",
             )
 
-    # Show sample prompts when chat is empty
-    if not st.session_state.messages and not runtime_errors:
+    # Show sample prompts when chat is empty and no pending prompt
+    if (not st.session_state.messages
+            and not runtime_errors
+            and not st.session_state.get("_pending_prompt")):
         _sample_prompts = [
             (
                 "Market Health Check",
