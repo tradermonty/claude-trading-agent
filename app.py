@@ -58,7 +58,7 @@ _TEXTS: dict[str, dict[str, str]] = {
         "sidebar_session": "Session: `{session_id}`",
         "clear_chat": "New Session",
         "config_issue": "Configuration issue detected.",
-        "prompt_placeholder": "Run /ftd-detector, then /canslim, /vcp-screener, and /breakout-plan",
+        "prompt_placeholder": "Type your message...",
         "thinking": "Thinking...",
         "running_tool": "{label}...",
         "rate_limit_exceeded": "Rate limit exceeded ({limit}/min). Try again in about {seconds}s.",
@@ -74,7 +74,7 @@ _TEXTS: dict[str, dict[str, str]] = {
         "sidebar_session": "Session: `{session_id}`",
         "clear_chat": "新しいセッション",
         "config_issue": "設定エラーを検出しました。",
-        "prompt_placeholder": "/ftd-detector → /canslim → /vcp-screener → /breakout-plan を順に実行",
+        "prompt_placeholder": "メッセージを入力...",
         "thinking": "考え中...",
         "running_tool": "{label}...",
         "rate_limit_exceeded": (
@@ -347,14 +347,32 @@ def render_app() -> None:
                 key=f"dl_{idx}_{fi}",
             )
 
+    # Show sample prompts when chat is empty
+    if not st.session_state.messages and not runtime_errors:
+        _sample_prompts = [
+            (
+                "Full workflow: FTD → CANSLIM → VCP → Breakout",
+                "Run /ftd-detector, then /canslim, then /vcp-screener, "
+                "and finally /breakout-plan with the top candidates.",
+            ),
+            ("Market breadth check", "/breadth"),
+            ("This week's earnings", "/earnings"),
+        ]
+        cols = st.columns(len(_sample_prompts))
+        for col, (label, prompt_text) in zip(cols, _sample_prompts):
+            if col.button(label, use_container_width=True):
+                st.session_state._pending_prompt = prompt_text
+                st.rerun()
+
+    # Handle pending prompt from sample buttons
+    pending = st.session_state.pop("_pending_prompt", None)
+
     submitted_input = st.chat_input(
         _msg("prompt_placeholder"),
         disabled=bool(runtime_errors),
     )
-    if submitted_input is None:
-        return
 
-    prompt = submitted_input.strip()
+    prompt = (pending or submitted_input or "").strip()
     if not prompt:
         return
 
