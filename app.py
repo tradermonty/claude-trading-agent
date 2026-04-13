@@ -58,7 +58,7 @@ _TEXTS: dict[str, dict[str, str]] = {
         "sidebar_session": "Session: `{session_id}`",
         "clear_chat": "New Session",
         "config_issue": "Configuration issue detected.",
-        "prompt_placeholder": "Type your message...",
+        "prompt_placeholder": "Run /ftd-detector, then /canslim, /vcp-screener, and /breakout-plan",
         "thinking": "Thinking...",
         "running_tool": "{label}...",
         "rate_limit_exceeded": "Rate limit exceeded ({limit}/min). Try again in about {seconds}s.",
@@ -74,7 +74,7 @@ _TEXTS: dict[str, dict[str, str]] = {
         "sidebar_session": "Session: `{session_id}`",
         "clear_chat": "新しいセッション",
         "config_issue": "設定エラーを検出しました。",
-        "prompt_placeholder": "メッセージを入力...",
+        "prompt_placeholder": "/ftd-detector → /canslim → /vcp-screener → /breakout-plan を順に実行",
         "thinking": "考え中...",
         "running_tool": "{label}...",
         "rate_limit_exceeded": (
