@@ -3,7 +3,7 @@
 
 Usage:
     1. Copy .env.example to .env and set ANTHROPIC_API_KEY (and optionally FMP_API_KEY)
-    2. Run: python setup.py
+    2. Run: python bootstrap.py
     3. The script writes all generated IDs back to .env automatically
 
 If IDs already exist in .env, those steps are skipped. Use --force to re-create everything.
@@ -216,11 +216,6 @@ def main() -> None:
         **skill_env_map,
     }
     update_env_file(env_updates)
-
-    new_count = sum(
-        1 for k, v in env_updates.items()
-        if read_env_value(k) != v
-    )
     print(f"  Updated {len(env_updates)} entries in .env")
 
     print("\n" + "=" * 50)

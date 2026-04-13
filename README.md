@@ -79,6 +79,10 @@ The `ManagedAgentClient.send_message_streaming()` method implements this pattern
 
 Detects skill commands in user input and dynamically extends the agent's system prompt. When `detect_skill()` matches a command (`/vcp-screener`) or keyword, it loads the corresponding `SKILL.md` and `references/` files and injects them into the prompt.
 
+### Why two skill mechanisms?
+
+This project uses **API Skills** (file delivery to the sandbox) and a **local registry** (prompt injection) together. API Skills make scripts available in the cloud environment; the local registry tells the agent *how* to use them by enriching the system prompt. See `CLAUDE.md` for the full explanation.
+
 ## Prerequisites
 
 - Python 3.12+
@@ -144,14 +148,15 @@ docker compose up --build
 
 ## Testing
 
-Each skill includes unit tests:
+Each skill includes unit tests. Run per-skill to avoid cross-skill test name collisions:
 
 ```bash
-# All tests
-python -m pytest skills/ -v
+# Install dev dependencies (includes pytest)
+pip install -r requirements-dev.txt
 
-# Specific skill
+# Run tests for a specific skill
 python -m pytest skills/vcp-screener/scripts/tests/ -v
+python -m pytest skills/ftd-detector/scripts/tests/ -v
 ```
 
 ## Configuration
