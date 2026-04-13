@@ -1,35 +1,37 @@
 # Trade Assistant
 
-Claude Managed Agents API を活用した米国株トレーディングアシスタント。Streamlit チャット UI から 10 種類の専門スキルを呼び出し、データドリブンな投資分析を行います。
+A US equity trading assistant built on the Claude Managed Agents API. Chat via Streamlit UI or CLI to invoke 10 specialized analysis skills for data-driven investment research.
 
-> **Disclaimer**: 本ツールは教育目的の分析ツールです。投資助言ではありません。
+[日本語版 README はこちら](README.ja.md)
 
-> **Note**: Managed Agents API はベータ版です。API の `agent_toolset_20260401` や `betas=["skills-2025-10-02"]` は変更される可能性があります。
+> **Disclaimer**: This tool is for educational purposes only. It does not constitute financial advice.
+
+> **Note**: The Managed Agents API is in beta. Identifiers such as `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
 
 ## Features
 
 | Command | Skill | Description |
 |---------|-------|-------------|
-| `/scenario-analyzer "headline"` | Scenario Analyzer | ニュースヘッドラインから 18 ヶ月シナリオを構築 |
-| `/ftd-detector` | FTD Detector | Follow-Through Day による市場底入れ確認 |
-| `/vcp-screener` | VCP Screener | Minervini 式 Volatility Contraction Pattern スキャン |
-| `/macro-regime` | Macro Regime Detector | クロスアセット比率によるマクロレジーム検出 |
-| `/canslim` | CANSLIM Screener | O'Neil 式 CANSLIM 成長株スクリーニング |
-| `/theme-detector` | Theme Detector | 市場テーマ・セクターローテーション分析 |
-| `/breadth` | Market Breadth Analyzer | 市場参加率・ブレッス指標による健全性チェック |
-| `/earnings` | Earnings Calendar | 今週の決算発表カレンダー取得 |
-| `/econ-calendar` | Economic Calendar | FOMC・CPI・雇用統計などの経済イベント取得 |
-| `/breakout-plan` | Breakout Trade Planner | VCP 候補からエントリー/リスク計算付きトレードプラン生成 |
+| `/scenario-analyzer "headline"` | Scenario Analyzer | Build 18-month scenarios from news headlines |
+| `/ftd-detector` | FTD Detector | Confirm market bottoms via Follow-Through Days |
+| `/vcp-screener` | VCP Screener | Scan for Minervini Volatility Contraction Patterns |
+| `/macro-regime` | Macro Regime Detector | Detect macro regime shifts using cross-asset ratios |
+| `/canslim` | CANSLIM Screener | Screen growth stocks with O'Neil's CANSLIM method |
+| `/theme-detector` | Theme Detector | Analyze market themes and sector rotation |
+| `/breadth` | Market Breadth Analyzer | Check market health via breadth indicators |
+| `/earnings` | Earnings Calendar | Fetch upcoming earnings announcements |
+| `/econ-calendar` | Economic Calendar | Fetch FOMC, CPI, jobs report schedules |
+| `/breakout-plan` | Breakout Trade Planner | Generate entry/risk trade plans from VCP candidates |
 
 ## Architecture
 
 ```
 Streamlit UI (app.py)
-  ├── agent/client.py      — Managed Agents API ラッパー (Agent/Environment/Session 管理)
-  ├── agent/sanitizer.py   — APIキー・システムパスの出力サニタイズ
-  ├── config/settings.py   — 環境変数ベースの設定管理
+  ├── agent/client.py      — Managed Agents API wrapper (Agent/Environment/Session)
+  ├── agent/sanitizer.py   — Redacts API keys & system paths from output
+  ├── config/settings.py   — Environment-variable-based configuration
   └── skills/
-       ├── registry.py     — スキルコマンド検出 & システムプロンプト構築
+       ├── registry.py     — Skill command detection & system prompt builder
        ├── scenario-analyzer/
        ├── ftd-detector/
        ├── vcp-screener/
@@ -42,46 +44,46 @@ Streamlit UI (app.py)
        └── breakout-trade-planner/
 ```
 
-各スキルは `SKILL.md`（エージェント向け指示）、`references/`（分析手法ドキュメント）、`scripts/`（Python スクリプト + テスト）で構成されています。
+Each skill contains `SKILL.md` (agent instructions), `references/` (methodology docs), and `scripts/` (Python code + tests).
 
 ## Learning Guide — Managed Agents API
 
-トレーディングのドメイン知識を無視して、**Managed Agents API の使い方**を学ぶには以下の 3 ファイルを順に読んでください。
+To learn the **Managed Agents API patterns** without trading domain knowledge, read these 3 files in order:
 
-### 1. `bootstrap.py` — リソース登録の流れ
+### 1. `bootstrap.py` — Resource provisioning
 
-Managed Agents には 3 つの主要リソースがあります:
+Managed Agents has 3 core resources:
 
-| リソース | 役割 | ライフサイクル |
-|----------|------|---------------|
-| **Skill** | エージェントが使える専門スクリプト群 | `skills.create()` で登録、Agent に紐付け |
-| **Agent** | モデル + システムプロンプト + スキル | `agents.create()` で作成、再利用可能 |
-| **Environment** | コード実行用クラウドサンドボックス | `environments.create()` で作成、再利用可能 |
+| Resource | Role | Lifecycle |
+|----------|------|-----------|
+| **Skill** | Specialized scripts the agent can use | Register via `skills.create()`, attach to Agent |
+| **Agent** | Model + system prompt + skills | Create via `agents.create()`, reusable |
+| **Environment** | Cloud sandbox for code execution | Create via `environments.create()`, reusable |
 
-`bootstrap.py` はこの 3 つを順に作成し、ID を `.env` に保存します。
+`bootstrap.py` creates all three in sequence and saves their IDs to `.env`.
 
-### 2. `agent/client.py` — セッションとストリーミング
+### 2. `agent/client.py` — Sessions and streaming
 
-Agent + Environment が揃ったら **Session** を作成してチャットします:
+Once Agent + Environment exist, create a **Session** to chat:
 
 ```
-Session = Agent + Environment の実行インスタンス
-  → events.stream() で SSE 接続
-  → events.send() でユーザーメッセージ送信
-  → agent.message / agent.tool_use / session.status_idle イベントを受信
+Session = running instance of Agent + Environment
+  → events.stream()  opens an SSE connection
+  → events.send()    sends user messages
+  → receives agent.message / agent.tool_use / session.status_idle events
 ```
 
-`ManagedAgentClient` クラスの `send_message_streaming()` がこのパターンの実装です。
+The `ManagedAgentClient.send_message_streaming()` method implements this pattern.
 
-### 3. `skills/registry.py` — スキルルーティングパターン
+### 3. `skills/registry.py` — Skill routing pattern
 
-ユーザー入力からスキルを検出し、エージェントのシステムプロンプトを動的に拡張するパターンです。`detect_skill()` がコマンド (`/vcp-screener`) やキーワード (`VCPブレイクアウト`) にマッチすると、対応する `SKILL.md` と `references/` を読み込んでプロンプトに注入します。
+Detects skill commands in user input and dynamically extends the agent's system prompt. When `detect_skill()` matches a command (`/vcp-screener`) or keyword, it loads the corresponding `SKILL.md` and `references/` files and injects them into the prompt.
 
 ## Prerequisites
 
 - Python 3.12+
-- [Anthropic API Key](https://console.anthropic.com/) (Managed Agents API アクセス付き)
-- [FMP API Key](https://financialmodelingprep.com/) (ファンダメンタル/価格データ用)
+- [Anthropic API Key](https://console.anthropic.com/) (with Managed Agents API access)
+- [FMP API Key](https://financialmodelingprep.com/) (for fundamental/price data)
 
 ## Setup
 
@@ -105,13 +107,14 @@ cp .env.example .env
 python bootstrap.py
 ```
 
-`bootstrap.py` は以下を自動実行し、取得した ID を `.env` に書き込みます:
+`bootstrap.py` automatically:
 
-1. 10 スキルを Skills API に登録
-2. Agent を作成（スキル紐付け + システムプロンプト設定）
-3. Environment を作成（クラウドサンドボックス）
+1. Registers 10 skills with the Skills API
+2. Creates an Agent (with skills attached + system prompt)
+3. Creates an Environment (cloud sandbox)
+4. Writes all generated IDs back to `.env`
 
-既に ID が `.env` にある場合はスキップされます。強制再作成は `python bootstrap.py --force` で実行できます。
+If IDs already exist in `.env`, those steps are skipped. Use `python bootstrap.py --force` to re-create everything.
 
 ## Usage
 
@@ -121,17 +124,17 @@ python bootstrap.py
 streamlit run app.py
 ```
 
-ブラウザで `http://localhost:8501` を開き、チャットでスキルコマンドを入力します。
+Open `http://localhost:8501` in your browser and type skill commands in the chat.
 
 ### CLI
 
 ```bash
-python scripts/query_agent.py "今週のマーケット見通しを教えて"
+python scripts/query_agent.py "What's the market outlook this week?"
 python scripts/query_agent.py "/vcp-screener"
 python scripts/query_agent.py  # interactive mode
 ```
 
-CLI は Streamlit UI と同じ Agent/Environment/スキルルーティングを使用します。
+The CLI uses the same Agent/Environment and skill routing as the Streamlit UI.
 
 ### Docker
 
@@ -141,7 +144,7 @@ docker compose up --build
 
 ## Testing
 
-各スキルにはユニットテストが含まれています:
+Each skill includes unit tests:
 
 ```bash
 # All tests
@@ -153,16 +156,16 @@ python -m pytest skills/vcp-screener/scripts/tests/ -v
 
 ## Configuration
 
-主要な環境変数は `.env.example` を参照してください。
+See `.env.example` for all available variables.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Anthropic API キー |
-| `FMP_API_KEY` | No | Financial Modeling Prep API キー |
-| `CLAUDE_MODEL` | No | 使用モデル (default: `claude-sonnet-4-6`) |
-| `MANAGED_AGENT_ID` | No | 既存 Agent ID (`bootstrap.py` が自動設定) |
-| `MANAGED_ENVIRONMENT_ID` | No | 既存 Environment ID (`bootstrap.py` が自動設定) |
-| `APP_LOCALE` | No | UI 言語 `ja` / `en` (default: `ja`) |
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key |
+| `FMP_API_KEY` | No | Financial Modeling Prep API key |
+| `CLAUDE_MODEL` | No | Model to use (default: `claude-sonnet-4-6`) |
+| `MANAGED_AGENT_ID` | No | Existing Agent ID (auto-set by `bootstrap.py`) |
+| `MANAGED_ENVIRONMENT_ID` | No | Existing Environment ID (auto-set by `bootstrap.py`) |
+| `APP_LOCALE` | No | UI language `ja` / `en` (default: `ja`) |
 
 ## License
 
