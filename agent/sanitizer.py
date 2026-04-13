@@ -19,9 +19,19 @@ _RE_ABS_PATH = re.compile(
     r"(?:/[^\s`\"')\]}>,:;]+)+"
 )
 
+# Collect known API keys from environment for exact-match redaction.
+# This catches keys shorter than the generic 40-char token pattern.
+_KNOWN_SECRETS: list[str] = []
+for _env_key in ("FMP_API_KEY", "ANTHROPIC_API_KEY"):
+    _val = os.getenv(_env_key, "").strip()
+    if _val and len(_val) >= 8:
+        _KNOWN_SECRETS.append(_val)
+
 
 def sanitize(text: str) -> str:
     """Redact secrets and system paths from agent output."""
+    for secret in _KNOWN_SECRETS:
+        text = text.replace(secret, "[REDACTED_API_KEY]")
     text = _RE_ANTHROPIC_KEY.sub("[REDACTED_API_KEY]", text)
     text = _RE_LONG_TOKEN.sub("[REDACTED_TOKEN]", text)
     text = _RE_ABS_PATH.sub(_redact_abs_path, text)

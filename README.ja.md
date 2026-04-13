@@ -79,6 +79,10 @@ Session = Agent + Environment の実行インスタンス
 
 ユーザー入力からスキルを検出し、エージェントのシステムプロンプトを動的に拡張するパターンです。`detect_skill()` がコマンド (`/vcp-screener`) やキーワード (`VCPブレイクアウト`) にマッチすると、対応する `SKILL.md` と `references/` を読み込んでプロンプトに注入します。
 
+### なぜ2つのスキル機構があるのか？
+
+本プロジェクトは **API Skills**（サンドボックスへのファイル配信）と **ローカル registry**（プロンプト注入）を併用しています。API Skills はスクリプトをクラウド環境に配置し、ローカル registry はシステムプロンプトを拡張してエージェントに分析手法を指示します。詳細は `CLAUDE.md` を参照してください。
+
 ## Prerequisites
 
 - Python 3.12+
@@ -143,14 +147,15 @@ docker compose up --build
 
 ## Testing
 
-各スキルにはユニットテストが含まれています:
+各スキルにはユニットテストが含まれています。スキル間のテスト名衝突を避けるため、スキル単位で実行してください:
 
 ```bash
-# All tests
-python -m pytest skills/ -v
+# dev 依存のインストール (pytest 含む)
+pip install -r requirements-dev.txt
 
-# Specific skill
+# スキル単位でテスト実行
 python -m pytest skills/vcp-screener/scripts/tests/ -v
+python -m pytest skills/ftd-detector/scripts/tests/ -v
 ```
 
 ## Configuration

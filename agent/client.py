@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class StreamChunk(TypedDict):
     """Normalized stream payload consumed by the Streamlit UI."""
 
-    type: Literal["text_delta", "tool_use", "tool_result", "error", "done", "file_created"]
+    type: Literal["text", "tool_use", "tool_result", "error", "done", "file_created"]
     content: NotRequired[str]
     file_name: NotRequired[str]
     file_content: NotRequired[str]
@@ -203,7 +203,7 @@ class ManagedAgentClient:
             for block in getattr(event, "content", []):
                 text = getattr(block, "text", "")
                 if text:
-                    yield {"type": "text_delta", "content": text}
+                    yield {"type": "text", "content": text}
 
         elif event_type == "agent.tool_use":
             tool_name = getattr(event, "name", "unknown")

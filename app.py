@@ -230,7 +230,7 @@ def _stream_response(
     *,
     system_supplement: str = "",
     reference_context: str = "",
-) -> tuple[str, bool]:
+) -> tuple[str, list[dict[str, str]]]:
     """Fetch and progressively render a single assistant response.
 
     Returns (response_text, has_file_output).
@@ -246,7 +246,7 @@ def _stream_response(
         ctype = chunk.get("type")
         content = sanitize(chunk.get("content", ""))
 
-        if ctype in {"text_delta", "text"} and content:
+        if ctype == "text" and content:
             final_text_parts.append(content)
             status_placeholder.empty()
             response_placeholder.markdown("".join(final_text_parts) + " ▌")

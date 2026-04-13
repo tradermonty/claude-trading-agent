@@ -54,7 +54,7 @@ def stream_response(client: ManagedAgentClient, message: str) -> str:
         ctype = chunk.get("type")
         content = chunk.get("content", "")
 
-        if ctype in {"text_delta", "text"} and content:
+        if ctype == "text" and content:
             safe = sanitize(content)
             print(safe, end="", flush=True)
             result_parts.append(safe)
