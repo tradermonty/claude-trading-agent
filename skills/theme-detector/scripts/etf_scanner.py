@@ -83,6 +83,8 @@ class ETFScanner:
     FMP_HIST_BATCH_SIZE = 5
     FMP_QUOTE_BATCH_SIZE = 50
 
+    _ENDPOINT_FAILURE_THRESHOLD = 3  # disable endpoint after N consecutive failures
+
     def __init__(self, fmp_api_key: Optional[str] = None, rate_limit_sec: float = 0.3):
         self._cache: dict[str, pd.DataFrame] = {}
         self._fmp_api_key = fmp_api_key
@@ -94,6 +96,9 @@ class ETFScanner:
             "etf": {"fmp_calls": 0, "fmp_failures": 0, "yf_calls": 0, "yf_fallbacks": 0},
         }
         self._current_stats_context: str = "stock"
+        # Circuit breaker: track consecutive failures per endpoint URL prefix
+        self._endpoint_failures: dict[str, int] = {}
+        self._disabled_endpoints: set[str] = set()
 
     def backend_stats(self) -> dict[str, Any]:
         """Return backend usage statistics with both flat and nested formats.
@@ -131,7 +136,10 @@ class ETFScanner:
     def _fmp_request(
         self, endpoint_key: str, symbols_str: str, extra_params: Optional[dict] = None
     ) -> Optional[Any]:
-        """Try each endpoint (stable -> v3) with correct URL format.
+        """Try each endpoint (stable -> v3) with circuit breaker.
+
+        Endpoints that fail consecutively are disabled to avoid wasting
+        API calls and triggering rate limits from the provider.
 
         Args:
             endpoint_key: "quote" or "historical"
@@ -150,6 +158,10 @@ class ETFScanner:
 
         ctx = self._current_stats_context
         for base_url, url_builder in _FMP_ENDPOINTS[endpoint_key]:
+            # Circuit breaker: skip endpoints with too many consecutive failures
+            if base_url in self._disabled_endpoints:
+                continue
+
             url, final_params = url_builder(base_url, symbols_str, dict(params))
             self._fmp_rate_limit()
             self._stats[ctx]["fmp_calls"] += 1
@@ -160,10 +172,18 @@ class ETFScanner:
                 if resp.status_code == 200:
                     data = resp.json()
                     if data:
+                        # Reset failure count on success
+                        self._endpoint_failures[base_url] = 0
                         return data
             except Exception:
                 pass
+
             self._stats[ctx]["fmp_failures"] += 1
+            failures = self._endpoint_failures.get(base_url, 0) + 1
+            self._endpoint_failures[base_url] = failures
+            if failures >= self._ENDPOINT_FAILURE_THRESHOLD:
+                self._disabled_endpoints.add(base_url)
+
         return None
 
     # -------------------------------------------------------------------
