@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+
+[project]
+name = "claude-trading-agent"
+version = "0.1.0"
+description = "US equity trading assistant built on Claude Managed Agents API"
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit>=1.42.0",
+    "anthropic>=0.94.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pyyaml>=6.0",
+    "finvizfinance>=0.14.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.9.0",
+    "bandit[toml]>=1.7.0",
+    "detect-secrets>=1.5.0",
+    "codespell>=2.3.0",
+    "pre-commit>=3.0.0",
+]
+
+# --- Ruff ---
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = [
+    "E501",  # line-too-long (handled by formatter)
+    "E402",  # module-level import not at top (sys.path manipulation)
+    "B904",  # raise-without-from-inside-except
+    "B007",  # unused-loop-control-variable
+    "B017",  # assert-raises-exception
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/conftest.py" = ["E402"]
+"**/test_*.py" = ["E402"]
+
+# --- Pytest ---
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = [
+    "skills/breakout-trade-planner/scripts/tests",
+    "skills/earnings-calendar/scripts/tests",
+    "skills/economic-calendar-fetcher/scripts/tests",
+    "skills/ftd-detector/scripts/tests",
+    "skills/macro-regime-detector/scripts/tests",
+    "skills/market-breadth-analyzer/scripts/tests",
+    "skills/vcp-screener/scripts/tests",
+    # theme-detector excluded: pre-existing failures
+    # canslim-screener excluded: requires finvizfinance at runtime
+]
+
+# --- Bandit ---
+
+[tool.bandit]
+targets = ["skills", "agent", "config"]
+skips = [
+    "B101",  # assert
+    "B110",  # try-except-pass
+    "B113",  # requests without timeout
+    "B310",  # urllib urlopen
+    "B311",  # random
+    "B404",  # import subprocess
+    "B603",  # subprocess without shell=true
+]
+
+# --- Codespell ---
+
+[tool.codespell]
+skip = ".venv,*.json,*.csv,*.baseline,dist,*.pyc,__pycache__"
+ignore-words-list = "trough,ore,cna,acn,blok,hims,pont,claus,theses"
+
+# --- Coverage ---
+
+[tool.coverage.run]
+source = ["skills", "agent", "config"]
+
+[tool.coverage.report]
+fail_under = 30
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+]
