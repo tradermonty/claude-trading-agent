@@ -2,21 +2,21 @@
 
 ## Overview
 
-Anthropic の Managed Agents API を使ったチャットアプリのリファレンス実装。
-10 種類のトレーディング分析スキルを搭載し、Streamlit UI / CLI / Docker で動作する。
+A reference implementation of a chat application using the Anthropic Managed Agents API.
+Ships with 10 specialized trading analysis skills and runs on Streamlit UI, CLI, or Docker.
 
 ## Architecture
 
 ```
 app.py (Streamlit UI)
-  → skills/registry.py    ユーザー入力からスキルを検出
-  → agent/client.py       Managed Agents API 呼び出し (Agent/Session/Event)
-  → agent/sanitizer.py    出力からAPIキー・パスをリダクション
-  → config/settings.py    .env ベースの設定管理
+  → skills/registry.py    Detect skill commands from user input
+  → agent/client.py       Managed Agents API calls (Agent/Session/Event)
+  → agent/sanitizer.py    Redact API keys & paths from output
+  → config/settings.py    .env-based configuration management
 ```
 
-**設計意図**: UI → ルーティング → API → セキュリティの4層分離。
-スキルのドメインロジック (`skills/*/scripts/`) はフレー���ワークから完全に独立している。
+**Design intent**: 4-layer separation — UI → Routing → API → Security.
+Skill domain logic (`skills/*/scripts/`) is fully independent from the framework.
 
 ## Development Workflow
 
@@ -38,35 +38,35 @@ python -m pytest skills/ -v
 
 | File | Purpose |
 |------|---------|
-| `bootstrap.py` | ワンコマンドプロビジョニング (Skills/Agent/Environment 登録) |
-| `agent/client.py` | Managed Agents API ラッパー — セッション管理とSSEストリーミング |
-| `skills/registry.py` | スキルコマンド検出とシステムプロンプト動的構築 |
-| `config/settings.py` | 全設定の一元管理 (.env → Python 定数) |
-| `agent/sanitizer.py` | APIキー・絶対パスのハードコード型リダクション |
+| `bootstrap.py` | One-command provisioning (Skills/Agent/Environment registration) |
+| `agent/client.py` | Managed Agents API wrapper — session management and SSE streaming |
+| `skills/registry.py` | Skill command detection and dynamic system prompt building |
+| `config/settings.py` | Centralized configuration (.env → Python constants) |
+| `agent/sanitizer.py` | Hard-coded redaction of API keys and absolute paths |
 
 ## Skill Structure
 
-各スキルは以下の構造:
+Each skill follows this layout:
 
 ```
 skills/<skill-name>/
-  ├── SKILL.md          # エージ���ント向けの実行指示
-  ├── references/       # 分析手法のリファレンスドキュメント
+  ├── SKILL.md          # Agent-facing execution instructions
+  ├── references/       # Methodology reference documents
   └── scripts/
-      ├── *.py          # ビジネスロジック
-      └── tests/        # ユニットテスト
+      ├── *.py          # Business logic
+      └── tests/        # Unit tests
 ```
 
 ## Known Limitations
 
-1. **スキル呼び出し毎に新��い Agent を作成**: `_create_skill_session()` がスキルトリガーの度に `agents.create()` を実行する。コスト・レイテンシの観点でキャッシュ/再利用パターンに改善余地あり。
+1. **New Agent created per skill invocation**: `_create_skill_session()` calls `agents.create()` on every skill trigger. Could be improved with caching/reuse patterns for cost and latency.
 
-2. **FMP_API_KEY のシステムプロンプト埋め込��**: `agent/client.py` の `_build_system_prompt()` で API キーを平文でプロンプトに書き込んでいる���Managed Agents の Environment Variables / Secrets 機能が利用可能になれば移行すべき。
+2. **FMP_API_KEY embedded in system prompt**: `_build_system_prompt()` in `agent/client.py` writes the API key as plain text into the prompt. Should migrate to Environment Variables / Secrets when available.
 
-3. **Managed Agents API はベータ版**: `agent_toolset_20260401`、`betas=["skills-2025-10-02"]` 等の識別子は変更される可能性がある。
+3. **Managed Agents API is in beta**: Identifiers like `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
 
 ## Conventions
 
-- テストは各スキルの `scripts/tests/` に配置
-- コメントは英語、UI テキストは日英対応 (`APP_LOCALE`)
-- 生成レポートは `reports/` に保存（.gitignore 対象）
+- Tests live in each skill's `scripts/tests/` directory
+- Code comments in English; UI text supports both `ja` and `en` (`APP_LOCALE`)
+- Generated reports are saved to `reports/` (gitignored)
