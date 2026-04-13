@@ -1,0 +1,23 @@
+# Secrets & credentials
+.env
+.agent_cache.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Generated output
+reports/
+
+# Distribution package (managed separately)
+dist/
+
+# macOS
+.DS_Store
+
+# Development samples
+sample_*.py
