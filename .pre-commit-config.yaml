@@ -1,0 +1,57 @@
+# Install both pre-commit and pre-push hooks:
+#   pre-commit install && pre-commit install --hook-type pre-push
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: [--skip, ".venv,*.json,*.csv,*.baseline,dist,*.pyc,__pycache__",
+               --ignore-words-list, "trough,ore,cna,acn,blok,hims,pont,claus,theses"]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - --baseline
+          - .secrets.baseline
+        exclude: '\.env$|\.json$|\.csv$|\.md$|\.zip$'
+
+  # Project-specific hooks
+  - repo: local
+    hooks:
+      - id: no-absolute-paths
+        name: Detect absolute paths with usernames
+        entry: python3 scripts/hooks/check_no_absolute_paths.py
+        language: system
+        types: [text]
+        exclude: '\.git/|\.venv/|\.secrets\.baseline$|/tests?/|CLAUDE\.md$|check_no_absolute_paths\.py$'
+
+      # Pre-push: run all skill tests before pushing
+      - id: pytest-pre-push
+        name: Run all skill tests
+        entry: bash scripts/run_all_tests.sh
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true

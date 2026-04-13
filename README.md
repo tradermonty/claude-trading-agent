@@ -159,6 +159,29 @@ python -m pytest skills/vcp-screener/scripts/tests/ -v
 python -m pytest skills/ftd-detector/scripts/tests/ -v
 ```
 
+## CI/CD
+
+GitHub Actions runs 3 jobs on every PR and push to `main`:
+
+| Job | Tools | What it checks |
+|-----|-------|----------------|
+| **Lint** | ruff, codespell | Code style, formatting, spelling |
+| **Test** | pytest, coverage | Per-skill unit tests with coverage report |
+| **Security** | bandit, detect-secrets | SAST scan + secret leak detection |
+
+### Local development
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Set up pre-commit hooks (lint on commit, test on push)
+pre-commit install && pre-commit install --hook-type pre-push
+
+# Run all skill tests
+bash scripts/run_all_tests.sh
+```
+
 ## Configuration
 
 See `.env.example` for all available variables.
