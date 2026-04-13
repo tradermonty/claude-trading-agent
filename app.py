@@ -351,15 +351,36 @@ def render_app() -> None:
     if not st.session_state.messages and not runtime_errors:
         _sample_prompts = [
             (
-                "Full workflow: FTD → CANSLIM → VCP → Breakout",
-                "Run /ftd-detector, then /canslim, then /vcp-screener, "
-                "and finally /breakout-plan with the top candidates.",
+                "Market Health Check",
+                "Run /breadth to check market breadth, then /ftd-detector "
+                "to confirm market posture, and /macro-regime to assess "
+                "the current macro environment. Summarize the overall "
+                "market condition.",
             ),
-            ("Market breadth check", "/breadth"),
-            ("This week's earnings", "/earnings"),
+            (
+                "Theme & Sector Analysis",
+                "Run /theme-detector to find trending market themes and "
+                "sector rotation patterns. Then suggest which sectors "
+                "to focus on for new entries.",
+            ),
+            (
+                "Breakout Trade Workflow",
+                "Run /vcp-screener to find breakout candidates, then "
+                "/canslim to screen for growth stocks. Finally run "
+                "/breakout-plan with the top candidates to generate "
+                "entry/risk trade plans.",
+            ),
+            (
+                "This Week's Calendar",
+                "Run /econ-calendar to check upcoming economic events "
+                "and /earnings to see this week's earnings reports. "
+                "Highlight any events that could move the market.",
+            ),
         ]
-        cols = st.columns(len(_sample_prompts))
-        for col, (label, prompt_text) in zip(cols, _sample_prompts):
+        row1 = st.columns(2)
+        row2 = st.columns(2)
+        all_cols = row1 + row2
+        for col, (label, prompt_text) in zip(all_cols, _sample_prompts):
             if col.button(label, use_container_width=True):
                 st.session_state._pending_prompt = prompt_text
                 st.rerun()
