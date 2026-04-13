@@ -169,7 +169,7 @@ python -m pytest skills/ftd-detector/scripts/tests/ -v
 | `CLAUDE_MODEL` | No | 使用モデル (default: `claude-sonnet-4-6`) |
 | `MANAGED_AGENT_ID` | No | 既存 Agent ID (`bootstrap.py` が自動設定) |
 | `MANAGED_ENVIRONMENT_ID` | No | 既存 Environment ID (`bootstrap.py` が自動設定) |
-| `APP_LOCALE` | No | UI 言語 `ja` / `en` (default: `ja`) |
+| `APP_LOCALE` | No | UI 言語 `ja` / `en` (default: `en`)。日本語 UI にするには `.env` に `APP_LOCALE=ja` を追加してください |
 
 ## License
 

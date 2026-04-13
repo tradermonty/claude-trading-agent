@@ -195,7 +195,7 @@ See `.env.example` for all available variables.
 | `CLAUDE_MODEL` | No | Model to use (default: `claude-sonnet-4-6`) |
 | `MANAGED_AGENT_ID` | No | Existing Agent ID (auto-set by `bootstrap.py`) |
 | `MANAGED_ENVIRONMENT_ID` | No | Existing Environment ID (auto-set by `bootstrap.py`) |
-| `APP_LOCALE` | No | UI language `ja` / `en` (default: `ja`) |
+| `APP_LOCALE` | No | UI language `ja` / `en` (default: `en`) |
 
 ## License
 

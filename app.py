@@ -396,7 +396,7 @@ def render_app() -> None:
 
         if skill_match:
             status_placeholder.status(
-                f"🔧 {skill_match.skill_name} を実行中...", state="running"
+                _msg("running_tool", label=skill_match.skill_name), state="running"
             )
         else:
             status_placeholder.status(_msg("thinking"), state="running")
