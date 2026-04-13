@@ -91,6 +91,10 @@ class FMPClient:
         self.rate_limit_reached = False
         self.retry_count = 0
         self.max_retries = 1
+        # Circuit breaker: disable endpoints after consecutive failures
+        self._endpoint_failures: dict[str, int] = {}
+        self._disabled_endpoints: set[str] = set()
+        self._ENDPOINT_FAILURE_THRESHOLD = 3
 
     def _rate_limited_get(
         self, url: str, params: Optional[dict] = None, quiet: bool = False
@@ -152,16 +156,22 @@ class FMPClient:
             return None
 
     def _request_with_fallback(self, endpoint_key, symbols_str, extra_params=None):
-        """Try stable endpoint first, fall back to v3 for legacy users."""
+        """Try stable endpoint first, fall back to v3. Circuit breaker skips failing endpoints."""
         params = dict(extra_params) if extra_params else {}
         endpoints = _FMP_ENDPOINTS[endpoint_key]
         is_single = "," not in symbols_str
 
         for i, (base_url, url_builder) in enumerate(endpoints):
+            if base_url in self._disabled_endpoints:
+                continue
             url, final_params = url_builder(base_url, symbols_str, dict(params))
             is_last = i == len(endpoints) - 1
             data = self._rate_limited_get(url, final_params, quiet=not is_last)
             if not data:
+                failures = self._endpoint_failures.get(base_url, 0) + 1
+                self._endpoint_failures[base_url] = failures
+                if failures >= self._ENDPOINT_FAILURE_THRESHOLD:
+                    self._disabled_endpoints.add(base_url)
                 continue
 
             if endpoint_key == "quote":
@@ -193,6 +203,7 @@ class FMPClient:
                     if data["symbol"].replace("-", ".") != symbols_str.replace("-", "."):
                         continue
 
+            self._endpoint_failures[base_url] = 0  # Reset on success
             return data
         return None
 
