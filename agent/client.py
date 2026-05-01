@@ -20,6 +20,7 @@ from config.settings import (
     ENVIRONMENT_NAME,
     FMP_API_KEY,
     FTD_DETECTOR_SKILL_ID,
+    IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID,
     MACRO_REGIME_DETECTOR_SKILL_ID,
     MARKET_BREADTH_ANALYZER_SKILL_ID,
     SCENARIO_ANALYZER_SKILL_ID,
@@ -269,6 +270,7 @@ def _build_skills_list() -> list[dict[str, str]]:
         EARNINGS_CALENDAR_SKILL_ID,
         ECONOMIC_CALENDAR_SKILL_ID,
         BREAKOUT_TRADE_PLANNER_SKILL_ID,
+        IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID,
     ]:
         if skill_id:
             skills.append({
