@@ -33,6 +33,7 @@ SKILL_ENV_KEYS: dict[str, str] = {
     "earnings-calendar": "EARNINGS_CALENDAR_SKILL_ID",
     "economic-calendar-fetcher": "ECONOMIC_CALENDAR_SKILL_ID",
     "breakout-trade-planner": "BREAKOUT_TRADE_PLANNER_SKILL_ID",
+    "ibd-distribution-day-monitor": "IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID",
 }
 
 

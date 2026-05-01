@@ -178,6 +178,24 @@ BREAKOUT_TRADE_PLANNER = SkillDefinition(
     reference_files=["minervini_entry_rules.md"],
 )
 
+IBD_DISTRIBUTION_DAY_MONITOR = SkillDefinition(
+    name="ibd-distribution-day-monitor",
+    command="/ibd-dd",
+    trigger_keywords=[
+        "distribution day",
+        "ディストリビューションデイ",
+        "ディストリビューション・デイ",
+        "ibd distribution",
+        "tqqq exposure",
+        "tqqqエクスポージャー",
+    ],
+    skill_dir=SKILLS_DIR / "ibd-distribution-day-monitor",
+    reference_files=[
+        "ibd_distribution_methodology.md",
+        "tqqq_exposure_policy.md",
+    ],
+)
+
 ALL_SKILLS: list[SkillDefinition] = [
     SCENARIO_ANALYZER,
     FTD_DETECTOR,
@@ -189,6 +207,7 @@ ALL_SKILLS: list[SkillDefinition] = [
     EARNINGS_CALENDAR,
     ECONOMIC_CALENDAR,
     BREAKOUT_TRADE_PLANNER,
+    IBD_DISTRIBUTION_DAY_MONITOR,
 ]
 
 

@@ -367,10 +367,13 @@ def render_app() -> None:
             ),
             (
                 "Breakout Trade Workflow",
-                "Run /vcp-screener to find breakout candidates, then "
-                "/canslim to screen for growth stocks. Finally run "
-                "/breakout-plan with the top candidates to generate "
-                "entry/risk trade plans.",
+                "First run /ibd-dd to gauge market risk via Distribution "
+                "Day count and TQQQ exposure policy — gate the workflow "
+                "if risk is HIGH/SEVERE. Then /vcp-screener to find "
+                "breakout candidates, /canslim to screen for growth "
+                "stocks, and finally /breakout-plan with the top "
+                "candidates to generate entry/risk trade plans sized "
+                "to the IBD-recommended exposure.",
             ),
             (
                 "This Week's Calendar",
