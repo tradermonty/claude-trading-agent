@@ -104,9 +104,14 @@ ignore-words-list = "trough,ore,cna,acn,blok,hims,pont,claus,theses"
 
 [tool.coverage.run]
 source = ["common", "skills", "agent", "config"]
+omit = [
+    "*/tests/*",
+    "agent/tests/*",
+    "config/tests/*",
+]
 
 [tool.coverage.report]
-fail_under = 30
+fail_under = 50
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
