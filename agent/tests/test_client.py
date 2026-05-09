@@ -61,6 +61,12 @@ def _events_send_args(mock_sdk: MagicMock) -> dict[str, Any]:
 class TestSessionReuse:
     """Each call to send_message_streaming must reuse the existing session."""
 
+    def test_exposes_configured_resource_ids(self, patched_client):
+        client, _ = patched_client
+
+        assert client.agent_id == "agent_seeded_123"
+        assert client.environment_id == "env_seeded_456"
+
     def test_does_not_create_new_agent(self, patched_client):
         client, mock_sdk = patched_client
         before = mock_sdk.beta.agents.create.call_count

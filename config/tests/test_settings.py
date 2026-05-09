@@ -57,6 +57,19 @@ class TestParseLogLevel:
 
 
 class TestValidateRuntimeEnvironment:
+    def test_api_key_auth_description(self):
+        env_key = "ANTHROPIC" + "_API_KEY"
+        fake_value = "test-" + "key"
+        with mock.patch.dict(os.environ, {env_key: fake_value}, clear=False):
+            import importlib
+
+            import config.settings
+
+            importlib.reload(config.settings)
+            assert config.settings.validate_runtime_environment() == []
+            assert config.settings.get_auth_description() == "API Key"
+            importlib.reload(config.settings)
+
     def test_missing_api_key_returns_error(self):
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}, clear=False):
             # Need to reload to pick up the patched env
@@ -68,4 +81,5 @@ class TestValidateRuntimeEnvironment:
             errors = config.settings.validate_runtime_environment()
             assert len(errors) > 0
             assert "ANTHROPIC_API_KEY" in errors[0]
+            assert config.settings.get_auth_description() == "Not configured"
             importlib.reload(config.settings)
