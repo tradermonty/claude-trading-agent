@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Iterator
 from typing import Literal, NotRequired, TypedDict
 
@@ -120,48 +119,23 @@ class ManagedAgentClient:
             return self._session_id
         return self.create_session()
 
-    def send_message_streaming(
-        self,
-        user_message: str,
-        *,
-        system_supplement: str = "",
-        reference_context: str = "",
-        skill_hint: str = "",
-    ) -> Iterator[StreamChunk]:
-        """Send a user message and yield StreamChunk events.
+    def send_message_streaming(self, user_message: str) -> Iterator[StreamChunk]:
+        """Send a user message on the existing session and yield StreamChunk events.
 
-        Default path: reuses the existing session and prepends ``skill_hint``
-        (e.g. "Use the vcp-screener skill: AAPL") so Managed Skills can
-        auto-load. Cheaper, preserves conversational context.
-
-        Legacy path (LEGACY_SKILL_SESSION=1): when ``system_supplement`` is
-        provided, creates a fresh skill-specific agent + session. Loses
-        follow-up context but mirrors the pre-Phase-1 behavior verbatim.
+        Skill routing happens upstream in skills.registry.normalize_command:
+        callers pass either the original input (for non-skill messages) or
+        the rewritten "Use the X skill for this request: ..." string. The
+        client itself is skill-agnostic and only deals with the session
+        event stream.
         """
-        use_legacy = (
-            os.getenv("LEGACY_SKILL_SESSION", "").strip().lower()
-            in {"1", "true", "yes"}
-        )
-
-        if system_supplement and use_legacy:
-            # Legacy path: skill-specific agent + fresh session.
-            session_id = self._create_skill_session(system_supplement)
-        else:
-            session_id = self.ensure_session()
-
-        # Build message content blocks with local datetime context.
-        content_blocks: list[dict[str, str]] = []
-        if skill_hint and not use_legacy:
-            # Default path: lean hint that nudges Managed Skills to auto-load
-            # the right skill while keeping the existing session.
-            content_blocks.append({"type": "text", "text": skill_hint})
-        if reference_context:
-            content_blocks.append({"type": "text", "text": reference_context})
+        session_id = self.ensure_session()
 
         from datetime import datetime
         now = datetime.now().astimezone()
         date_ctx = now.strftime("[Current: %Y-%m-%d (%a) %H:%M %Z]")
-        content_blocks.append({"type": "text", "text": f"{date_ctx}\n\n{user_message}"})
+        content_blocks = [
+            {"type": "text", "text": f"{date_ctx}\n\n{user_message}"}
+        ]
 
         try:
             with self._client.beta.sessions.events.stream(session_id) as stream:
@@ -184,32 +158,6 @@ class ManagedAgentClient:
         except Exception as exc:
             logger.exception("Streaming failed for session %s", session_id)
             yield {"type": "error", "content": str(exc)}
-
-    def _create_skill_session(self, system_supplement: str) -> str:
-        """Create a dedicated agent + session for a skill invocation."""
-        env_id = self.ensure_environment()
-
-        base_system = f"{AGENT_SYSTEM_PROMPT}\n\n{system_supplement}"
-        combined_system = _build_system_prompt(base_system)
-        logger.info("Creating skill agent (system prompt: %d chars)", len(combined_system))
-
-        skills = _build_skills_list()
-        agent = self._client.beta.agents.create(
-            name=f"{AGENT_NAME} (skill)",
-            model=DEFAULT_MODEL,
-            system=combined_system,
-            tools=[{"type": "agent_toolset_20260401"}],
-            **({"skills": skills} if skills else {}),
-        )
-        logger.info("Skill agent created: %s", agent.id)
-
-        session = self._client.beta.sessions.create(
-            agent=agent.id,
-            environment_id=env_id,
-            title="Skill session",
-        )
-        logger.info("Skill session created: %s", session.id)
-        return session.id
 
     def _process_event(self, event: object) -> Iterator[StreamChunk]:
         """Convert a Managed Agents SSE event into StreamChunk(s)."""

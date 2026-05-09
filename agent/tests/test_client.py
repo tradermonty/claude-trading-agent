@@ -1,4 +1,4 @@
-"""Tests for agent.client.ManagedAgentClient — verifies skill session handling and feature flag rollback path."""
+"""Tests for agent.client.ManagedAgentClient — verifies session reuse semantics."""
 
 from __future__ import annotations
 
@@ -41,9 +41,7 @@ def patched_client(monkeypatch):
     stream_ctx.__exit__ = MagicMock(return_value=False)
     mock_sdk.beta.sessions.events.stream.return_value = stream_ctx
 
-    # Default returns for the resource creators.
     mock_sdk.beta.sessions.create.return_value = MagicMock(id="session_seeded_789")
-    mock_sdk.beta.agents.create.return_value = MagicMock(id="agent_skill_new_111", version=1)
 
     client = client_module.ManagedAgentClient()
     client._session_id = "session_seeded_789"  # bypass ensure_session
@@ -59,151 +57,73 @@ def _events_send_args(mock_sdk: MagicMock) -> dict[str, Any]:
     return mock_sdk.beta.sessions.events.send.call_args.kwargs
 
 
-class TestDefaultPath:
-    """Verify the default (Phase 1 new) path: session reuse + skill_hint prepend."""
+class TestSessionReuse:
+    """Each call to send_message_streaming must reuse the existing session."""
 
-    def test_skill_request_does_not_create_new_agent(self, patched_client):
+    def test_does_not_create_new_agent(self, patched_client):
         client, mock_sdk = patched_client
         before = mock_sdk.beta.agents.create.call_count
 
-        _drain(client.send_message_streaming(
-            "show me VCP setups",
-            system_supplement="## Active Skill: vcp-screener ...",
-            reference_context="### vcp_methodology.md ...",
-            skill_hint="Use the vcp-screener skill for this request: show me VCP setups",
-        ))
+        _drain(client.send_message_streaming("show me VCP setups"))
 
         after = mock_sdk.beta.agents.create.call_count
-        assert after - before == 0, "default path must not call agents.create"
+        assert after - before == 0, "skill routing must not call agents.create"
 
-    def test_default_path_reuses_session(self, patched_client):
+    def test_reuses_session_id(self, patched_client):
         client, mock_sdk = patched_client
         before_session = client._session_id
 
-        _drain(client.send_message_streaming(
-            "show me VCP setups",
-            system_supplement="anything",
-            skill_hint="Use the vcp-screener skill",
-        ))
+        _drain(client.send_message_streaming("show me VCP setups"))
 
         assert client._session_id == before_session
-        # events.stream should be called with the seeded session id.
         stream_call = mock_sdk.beta.sessions.events.stream.call_args
         assert stream_call.args[0] == "session_seeded_789"
-
-    def test_user_message_includes_skill_hint(self, patched_client):
-        client, mock_sdk = patched_client
-
-        _drain(client.send_message_streaming(
-            "AAPL",
-            skill_hint="Use the vcp-screener skill: AAPL",
-        ))
-
-        events = _events_send_args(mock_sdk)["events"]
-        first_block_text = events[0]["content"][0]["text"]
-        assert "Use the vcp-screener skill" in first_block_text
 
     def test_followup_keeps_same_session(self, patched_client):
         client, mock_sdk = patched_client
 
-        _drain(client.send_message_streaming("first", skill_hint=""))
-        first_stream_session = mock_sdk.beta.sessions.events.stream.call_args.args[0]
+        _drain(client.send_message_streaming("first message"))
+        first = mock_sdk.beta.sessions.events.stream.call_args.args[0]
 
-        _drain(client.send_message_streaming("second", skill_hint=""))
-        second_stream_session = mock_sdk.beta.sessions.events.stream.call_args.args[0]
+        _drain(client.send_message_streaming("second message"))
+        second = mock_sdk.beta.sessions.events.stream.call_args.args[0]
 
-        assert first_stream_session == second_stream_session == "session_seeded_789"
+        assert first == second == "session_seeded_789"
 
 
-class TestLegacyPath:
-    """Verify rollback path (LEGACY_SKILL_SESSION=1): skill-specific agent + fresh session."""
+class TestUserMessageContent:
+    """User message content blocks are built consistently."""
 
-    def test_legacy_flag_creates_new_skill_session(self, patched_client, monkeypatch):
+    def test_user_message_passed_verbatim(self, patched_client):
         client, mock_sdk = patched_client
-        monkeypatch.setenv("LEGACY_SKILL_SESSION", "1")
-        agents_before = mock_sdk.beta.agents.create.call_count
-        sessions_before = mock_sdk.beta.sessions.create.call_count
 
         _drain(client.send_message_streaming(
-            "show me VCP setups",
-            system_supplement="## Active Skill: vcp-screener ...",
-        ))
-
-        agents_after = mock_sdk.beta.agents.create.call_count
-        sessions_after = mock_sdk.beta.sessions.create.call_count
-        assert agents_after - agents_before == 1, \
-            "legacy path must call agents.create for the skill session"
-        assert sessions_after - sessions_before == 1, \
-            "legacy path must call sessions.create for the skill session"
-
-    def test_legacy_flag_accepts_truthy_variants(self, patched_client, monkeypatch):
-        # "TRUE" / "Yes" should also activate the legacy path.
-        client, mock_sdk = patched_client
-        monkeypatch.setenv("LEGACY_SKILL_SESSION", "TRUE")
-        before = mock_sdk.beta.agents.create.call_count
-
-        _drain(client.send_message_streaming(
-            "show me VCP setups",
-            system_supplement="## Active Skill: ...",
-        ))
-
-        assert mock_sdk.beta.agents.create.call_count - before == 1
-
-    def test_legacy_path_receives_full_system_supplement(
-        self, patched_client, monkeypatch
-    ):
-        # Rollback completeness: the legacy create_agent call must include the
-        # full SKILL.md system_supplement that the pre-Phase-1 implementation
-        # passed. Otherwise the feature flag wouldn't actually restore the
-        # old behavior.
-        client, mock_sdk = patched_client
-        monkeypatch.setenv("LEGACY_SKILL_SESSION", "1")
-
-        full_supplement = (
-            "## Active Skill: vcp-screener\n\n"
-            "Follow the workflow defined below to produce the analysis.\n\n"
-            "# VCP Screener detailed instructions..."
-        )
-
-        _drain(client.send_message_streaming(
-            "AAPL",
-            system_supplement=full_supplement,
-        ))
-
-        agents_create_kwargs = mock_sdk.beta.agents.create.call_args.kwargs
-        assert "Active Skill: vcp-screener" in agents_create_kwargs["system"]
-
-    def test_no_skill_hint_in_legacy_path(self, patched_client, monkeypatch):
-        # In legacy mode, skill_hint must NOT be prepended to the user message
-        # because the legacy path conveys the skill via system prompt, not via
-        # user-message hint.
-        client, mock_sdk = patched_client
-        monkeypatch.setenv("LEGACY_SKILL_SESSION", "1")
-
-        _drain(client.send_message_streaming(
-            "AAPL",
-            system_supplement="## Active Skill: vcp-screener ...",
-            skill_hint="Use the vcp-screener skill: AAPL",
+            "Use the vcp-screener skill for this request: AAPL"
         ))
 
         events = _events_send_args(mock_sdk)["events"]
-        all_text = " ".join(b["text"] for b in events[0]["content"])
-        assert "Use the vcp-screener skill" not in all_text
+        assert events[0]["type"] == "user.message"
+        text = events[0]["content"][0]["text"]
+        # Date prefix prepended by client; user message body is preserved.
+        assert "Use the vcp-screener skill for this request: AAPL" in text
 
-
-class TestSkillHintWithoutSystemSupplement:
-    """If only skill_hint is provided (no legacy supplement), default path runs."""
-
-    def test_skill_hint_only_uses_default_path(self, patched_client, monkeypatch):
+    def test_no_extra_content_blocks(self, patched_client):
+        # The client should send exactly ONE content block (date + user msg).
+        # Skill-routing prefixes are baked into user_message upstream by
+        # normalize_command, not added as separate blocks here.
         client, mock_sdk = patched_client
-        # LEGACY env unset → default path
-        before = mock_sdk.beta.agents.create.call_count
 
-        _drain(client.send_message_streaming(
-            "AAPL",
-            skill_hint="Use the vcp-screener skill: AAPL",
-        ))
+        _drain(client.send_message_streaming("plain message"))
 
-        assert mock_sdk.beta.agents.create.call_count - before == 0
         events = _events_send_args(mock_sdk)["events"]
-        assert "Use the vcp-screener skill" in events[0]["content"][0]["text"]
+        assert len(events[0]["content"]) == 1
+
+
+class TestResetSession:
+    """reset_session() must drop the session id and force a new create on next send."""
+
+    def test_reset_clears_session_id(self, patched_client):
+        client, _ = patched_client
+        assert client._session_id == "session_seeded_789"
+        client.reset_session()
+        assert client._session_id is None

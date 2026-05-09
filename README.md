@@ -89,13 +89,9 @@ Session = running instance of Agent + Environment
 
 The `ManagedAgentClient.send_message_streaming()` method implements this pattern.
 
-### 3. `skills/registry.py` — Skill routing pattern
+### 3. `skills/registry.py` — Slash-command routing
 
-Detects skill commands in user input and dynamically extends the agent's system prompt. When `detect_skill()` matches a command (`/vcp-screener`) or keyword, it loads the corresponding `SKILL.md` and `references/` files and injects them into the prompt.
-
-### Why two skill mechanisms?
-
-This project uses **API Skills** (file delivery to the sandbox) and a **local registry** (slash-command detection + lean skill hint) together. API Skills make scripts available in the cloud environment; the local registry routes `/vcp-screener` etc. and prepends a one-line hint to the user message so Managed Skills' auto-load can pick the right skill deterministically. From Phase 1 onward, the default path keeps the existing session across skill invocations, preserving conversational context. Set `LEGACY_SKILL_SESSION=1` to fall back to the pre-Phase-1 behavior of forking a new agent/session per skill call. See `CLAUDE.md` for the full explanation.
+`normalize_command(user_message)` detects slash commands (`/vcp-screener`) and trigger keywords in user input and rewrites the message to a one-line hint (`Use the vcp-screener skill for this request: ...`) so Managed Skills' description-based auto-load can pick the right skill deterministically. The rewritten string is sent as a normal user message on the existing session; the original input is preserved in chat history. See `CLAUDE.md` for details.
 
 ## Prerequisites
 

@@ -10,7 +10,7 @@ from typing import Any
 import streamlit as st
 from agent.client import ManagedAgentClient
 from agent.sanitizer import sanitize
-from skills.registry import detect_skill
+from skills.registry import normalize_command
 from config.settings import (
     APP_ICON,
     APP_LOG_FORMAT,
@@ -227,24 +227,20 @@ def _stream_response(
     prompt: str,
     status_placeholder: Any,
     response_placeholder: Any,
-    *,
-    system_supplement: str = "",
-    reference_context: str = "",
-    skill_hint: str = "",
 ) -> tuple[str, list[dict[str, str]]]:
     """Fetch and progressively render a single assistant response.
+
+    ``prompt`` is the message to send to the agent; if a skill was detected
+    upstream by ``normalize_command``, this will be the rewritten
+    "Use the X skill for this request: ..." form. Display of the original
+    user input is the caller's responsibility.
 
     Returns (response_text, created_files).
     """
     final_text_parts: list[str] = []
     created_files: list[dict[str, str]] = []
 
-    for chunk in client.send_message_streaming(
-        prompt,
-        system_supplement=system_supplement,
-        reference_context=reference_context,
-        skill_hint=skill_hint,
-    ):
+    for chunk in client.send_message_streaming(prompt):
         ctype = chunk.get("type")
         content = sanitize(chunk.get("content", ""))
 
@@ -420,31 +416,23 @@ def render_app() -> None:
         )
         return
 
-    # Detect skill triggers
-    skill_match = detect_skill(prompt)
-    system_supplement = ""
-    reference_context = ""
-    skill_hint = ""
+    # Route slash commands / keyword triggers through the registry. The
+    # rewritten send_text is passed to the agent; the original user input
+    # is what we save and render in chat history (so the user never sees
+    # the "Use the X skill ..." normalization).
+    send_text, matched_skill = normalize_command(prompt)
 
-    if skill_match:
-        display_prompt = f"🔧 **{skill_match.skill_name}**: {skill_match.headline}"
-        system_supplement = skill_match.system_supplement
-        reference_context = skill_match.reference_context
-        skill_hint = skill_match.skill_hint
-    else:
-        display_prompt = prompt
-
-    st.session_state.messages.append({"role": "user", "content": display_prompt})
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(display_prompt)
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
         status_placeholder = st.empty()
         response_placeholder = st.empty()
 
-        if skill_match:
+        if matched_skill:
             status_placeholder.status(
-                _msg("running_tool", label=skill_match.skill_name), state="running"
+                _msg("running_tool", label=matched_skill), state="running"
             )
         else:
             status_placeholder.status(_msg("thinking"), state="running")
@@ -453,12 +441,9 @@ def render_app() -> None:
         try:
             response_text, created_files = _stream_response(
                 client=client,
-                prompt=prompt,
+                prompt=send_text,
                 status_placeholder=status_placeholder,
                 response_placeholder=response_placeholder,
-                system_supplement=system_supplement,
-                reference_context=reference_context,
-                skill_hint=skill_hint,
             )
         except Exception as exc:
             logger.exception("Chat request failed")

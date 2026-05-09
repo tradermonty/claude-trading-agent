@@ -1,4 +1,4 @@
-"""Tests for skills.registry — verifies skill detection and prompt building."""
+"""Tests for skills.registry — verifies normalize_command routing."""
 
 import sys
 from pathlib import Path
@@ -6,100 +6,56 @@ from pathlib import Path
 # Ensure project root is on path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from skills.registry import ALL_SKILLS, detect_skill
+from skills.registry import ALL_SKILLS, normalize_command
 
 
-class TestSkillDetection:
-    """Verify skill command matching and keyword matching."""
+class TestNormalizeCommandSlash:
+    """Slash command routing: exact match, with argument, and boundary edge cases."""
 
-    def test_explicit_command_matches(self):
-        result = detect_skill("/vcp-screener")
-        assert result is not None
-        assert result.skill_name == "vcp-screener"
+    def test_exact_slash_command_routes(self):
+        send, name = normalize_command("/vcp-screener")
+        assert name == "vcp-screener"
+        assert send == "Use the vcp-screener skill for this request: vcp-screener"
 
-    def test_explicit_command_with_argument(self):
-        result = detect_skill('/scenario-analyzer "Fed cuts rates by 25bp"')
-        assert result is not None
-        assert result.skill_name == "scenario-analyzer"
-        assert "Fed cuts rates" in result.headline
+    def test_slash_command_with_argument(self):
+        send, name = normalize_command('/scenario-analyzer "Fed cuts rates by 25bp"')
+        assert name == "scenario-analyzer"
+        assert "Fed cuts rates" in send
+        assert send.startswith("Use the scenario-analyzer skill for this request:")
 
-    def test_keyword_match_japanese(self):
-        result = detect_skill("フォロースルーデイを確認して")
-        assert result is not None
-        assert result.skill_name == "ftd-detector"
+    def test_slash_command_with_tab_argument(self):
+        send, name = normalize_command("/scenario-analyzer\tFed cuts rates")
+        assert name == "scenario-analyzer"
+        assert "Fed cuts rates" in send
 
-    def test_keyword_match_english(self):
-        result = detect_skill("Check the market breadth")
-        assert result is not None
-        assert result.skill_name == "market-breadth-analyzer"
-
-    def test_no_match_returns_none(self):
-        result = detect_skill("What's the weather today?")
-        assert result is None
-
-    def test_command_boundary_no_partial_match(self):
-        # "/breadthfoo" must NOT match "/breadth" command.
-        result = detect_skill("/breadthfoo")
-        assert result is None
-
-    def test_command_boundary_with_tab_argument(self):
-        # Tab-separated argument should be accepted.
-        result = detect_skill("/scenario-analyzer\tFed cuts rates")
-        assert result is not None
-        assert result.skill_name == "scenario-analyzer"
-
-    def test_system_supplement_contains_skill_instructions(self):
-        result = detect_skill("/ftd-detector")
-        assert result is not None
-        assert "Active Skill: ftd-detector" in result.system_supplement
-
-    def test_reference_context_loaded(self):
-        result = detect_skill("/ftd-detector")
-        assert result is not None
-        assert result.reference_context != ""
-        assert "ftd_methodology.md" in result.reference_context
+    def test_partial_slash_does_not_match(self):
+        # "/breadthfoo" must NOT match the "/breadth" command.
+        send, name = normalize_command("/breadthfoo")
+        assert name is None
+        assert send == "/breadthfoo"  # passthrough
 
 
-class TestRefsDisabledEnv:
-    """Verify SKILLS_REFS_DISABLED env suppresses reference_context per skill."""
+class TestNormalizeCommandKeyword:
+    """Keyword-based routing for natural-language input."""
 
-    def test_refs_disabled_for_specified_skill(self, monkeypatch):
-        # market-breadth-analyzer should have empty reference_context
-        monkeypatch.setenv("SKILLS_REFS_DISABLED", "market-breadth-analyzer")
-        result = detect_skill("/breadth")
-        assert result is not None
-        assert result.skill_name == "market-breadth-analyzer"
-        assert result.reference_context == ""
+    def test_japanese_keyword_match(self):
+        send, name = normalize_command("フォロースルーデイを確認して")
+        assert name == "ftd-detector"
+        assert send.startswith("Use the ftd-detector skill for this request:")
 
-    def test_refs_disabled_does_not_affect_other_skills(self, monkeypatch):
-        # vcp-screener still gets its references when only market-breadth is disabled
-        monkeypatch.setenv("SKILLS_REFS_DISABLED", "market-breadth-analyzer")
-        result = detect_skill("/vcp-screener")
-        assert result is not None
-        assert result.skill_name == "vcp-screener"
-        assert result.reference_context != ""
-        assert "vcp_methodology.md" in result.reference_context
+    def test_english_keyword_match(self):
+        send, name = normalize_command("Check the market breadth")
+        assert name == "market-breadth-analyzer"
+        assert "Check the market breadth" in send
 
-    def test_env_unset_full_compat(self, monkeypatch):
-        # No env → all skills load references as before (regression guard)
-        monkeypatch.delenv("SKILLS_REFS_DISABLED", raising=False)
-        result = detect_skill("/breadth")
-        assert result is not None
-        assert result.reference_context != ""
-
-    def test_refs_disabled_handles_whitespace_and_empty(self, monkeypatch):
-        # " market-breadth-analyzer ,, vcp-screener " parses to two clean names
-        monkeypatch.setenv(
-            "SKILLS_REFS_DISABLED", " market-breadth-analyzer ,, vcp-screener "
-        )
-        breadth = detect_skill("/breadth")
-        vcp = detect_skill("/vcp-screener")
-        assert breadth.reference_context == ""
-        assert vcp.reference_context == ""
+    def test_no_match_returns_passthrough(self):
+        send, name = normalize_command("What's the weather today?")
+        assert name is None
+        assert send == "What's the weather today?"
 
 
 class TestSkillRegistry:
-    """Verify registry integrity."""
+    """Verify registry integrity (skill count, uniqueness)."""
 
     def test_all_skills_count(self):
         assert len(ALL_SKILLS) == 11
@@ -108,11 +64,10 @@ class TestSkillRegistry:
         commands = [s.command for s in ALL_SKILLS]
         assert len(commands) == len(set(commands))
 
-    def test_all_skills_have_skill_dir(self):
-        for skill in ALL_SKILLS:
-            assert skill.skill_dir.exists(), f"{skill.name}: {skill.skill_dir} not found"
+    def test_all_skills_have_unique_names(self):
+        names = [s.name for s in ALL_SKILLS]
+        assert len(names) == len(set(names))
 
-    def test_all_skills_have_skill_md(self):
+    def test_every_skill_has_at_least_one_keyword(self):
         for skill in ALL_SKILLS:
-            skill_md = skill.skill_dir / "SKILL.md"
-            assert skill_md.exists(), f"{skill.name}: SKILL.md not found"
+            assert skill.trigger_keywords, f"{skill.name} has no trigger_keywords"

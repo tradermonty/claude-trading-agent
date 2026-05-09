@@ -40,28 +40,35 @@ python -m pytest skills/ -v
 |------|---------|
 | `bootstrap.py` | One-command provisioning (Skills/Agent/Environment registration) |
 | `agent/client.py` | Managed Agents API wrapper — session management and SSE streaming |
-| `skills/registry.py` | Skill command detection and dynamic system prompt building |
+| `skills/registry.py` | Slash-command routing into Managed Skills auto-load |
 | `config/settings.py` | Centralized configuration (.env → Python constants) |
 | `agent/sanitizer.py` | Hard-coded redaction of API keys and absolute paths |
 
-## Dual Skill System — Why Two Mechanisms?
+## Skill Routing
 
-This project uses **two complementary skill mechanisms** that fire simultaneously:
+Skills are registered with the Managed Agents API by `bootstrap.py`
+(`skills.create()` → attached to the Agent). Once attached, the
+Anthropic platform auto-loads them based on each skill's SKILL.md
+description (progressive disclosure).
 
-| Layer | Mechanism | What It Does |
-|-------|-----------|--------------|
-| **API Skills** (`bootstrap.py`) | `skills.create()` → attached to Agent | Delivers skill files (scripts, references) into the cloud sandbox so the agent can execute them |
-| **Local Registry** (`skills/registry.py`) | `detect_skill()` → prompt injection | Enriches the system prompt with `SKILL.md` instructions and `references/` content to guide the agent's analysis |
+`skills/registry.py` adds a thin client-side layer for **deterministic
+routing**:
 
-**How they cooperate on a skill trigger** (e.g., `/vcp-screener`):
+| Input | normalize_command output |
+|-------|--------------------------|
+| `/vcp-screener` | `("Use the vcp-screener skill for this request: vcp-screener", "vcp-screener")` |
+| `/scenario-analyzer "Fed cuts 25bp"` | `("Use the scenario-analyzer skill for this request: Fed cuts 25bp", "scenario-analyzer")` |
+| `フォロースルーデイを確認して` | `("Use the ftd-detector skill for this request: ...", "ftd-detector")` |
+| `What's the weather?` | `("What's the weather?", None)` — passthrough |
 
-1. `detect_skill()` matches the command → loads `SKILL.md` + `references/*.md`
-2. `_create_skill_session()` creates a dedicated agent with the enriched system prompt **and** API Skills attached
-3. The agent receives analysis methodology via the prompt (local registry) **and** has access to the Python scripts via the sandbox filesystem (API Skills)
+The rewritten string is sent to the agent as a normal user message; the
+existing session is reused so follow-up questions ("tell me more about
+the 2nd stock") retain context. The original user input is preserved
+in chat history so the user never sees the rewritten "Use the X skill
+..." form.
 
-**Why not just one?** API Skills deliver files but don't control the system prompt. The local registry controls the prompt but can't deliver files to the sandbox. Both are needed for the agent to know *what* to do (prompt) and *how* to do it (scripts).
-
-**Default path (Phase 1+)**: Skill invocations now reuse the existing session. The local registry produces a lean `skill_hint` (`Use the {skill_name} skill for this request: ...`) prepended to the user message, and Managed Skills' description-based auto-load picks the right skill. Follow-up questions retain context. Set `LEGACY_SKILL_SESSION=1` to restore the pre-Phase-1 behavior of creating a fresh skill-specific agent/session per invocation (rollback path; loses follow-up context).
+Skill files (`SKILL.md`, `references/`, `scripts/`) live in the cloud
+sandbox via API Skills. The registry does not load them into prompts.
 
 ## Skill Structure
 
@@ -78,17 +85,13 @@ skills/<skill-name>/
 
 ## Known Limitations
 
-1. **New Agent created per skill invocation**: `_create_skill_session()` calls `agents.create()` on every skill trigger. Could be improved with caching/reuse patterns for cost and latency.
+1. **FMP_API_KEY embedded in system prompt**: `_build_system_prompt()` in `agent/client.py` writes the API key as plain text into the prompt. Should migrate to Environment Variables / Secrets when available.
 
-2. **FMP_API_KEY embedded in system prompt**: `_build_system_prompt()` in `agent/client.py` writes the API key as plain text into the prompt. Should migrate to Environment Variables / Secrets when available.
+2. **datetime.now() in skill scripts vs. user timezone**: The system prompt instructs the agent to use the `[Current: ...]` header for the user's local date, but skill scripts internally use `datetime.now()` which reflects the container's clock (UTC in cloud). This can cause 1-day date mismatches for US users.
 
-3. ~~**Skill follow-up context is lost**~~: **Resolved in Phase 1**. The default path now reuses the session across skill invocations, so "tell me more about the 2nd stock" works as expected. The legacy behavior is still reachable via `LEGACY_SKILL_SESSION=1` for rollback verification.
+3. **Managed Agents API is in beta**: Identifiers like `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
 
-4. **datetime.now() in skill scripts vs. user timezone**: The system prompt instructs the agent to use the `[Current: ...]` header for the user's local date, but skill scripts internally use `datetime.now()` which reflects the container's clock (UTC in cloud). This can cause 1-day date mismatches for US users.
-
-5. **Managed Agents API is in beta**: Identifiers like `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
-
-6. **Test collection conflicts**: Running `pytest skills/ -v` from the project root may fail due to same-named test files across skills (e.g., multiple `test_report_generator.py`). Run tests per-skill instead: `pytest skills/vcp-screener/scripts/tests/ -v`.
+4. **Test collection conflicts**: Running `pytest skills/ -v` from the project root may fail due to same-named test files across skills (e.g., multiple `test_report_generator.py`). Run tests per-skill instead: `pytest skills/vcp-screener/scripts/tests/ -v`.
 
 ## Conventions
 
