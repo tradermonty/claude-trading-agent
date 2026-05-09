@@ -1,6 +1,6 @@
 ---
 name: canslim-screener
-description: Screen US stocks using William O'Neil's CANSLIM growth stock methodology. Use when user requests CANSLIM stock screening, growth stock analysis, momentum stock identification, or wants to find stocks with strong earnings and price momentum following O'Neil's investment system.
+description: Screen US stocks using William O'Neil's CANSLIM growth stock methodology. Combines fundamental criteria (Current/Annual earnings, New highs, Supply/Demand, Leader/Laggard, Institutional sponsorship, Market direction) into a composite score. TRIGGER when user types /canslim, asks about CANSLIM, キャンスリム, 成長株スクリーニング, growth stock screening, O'Neil methodology, momentum stock identification, or wants stocks with strong earnings and price momentum. SKIP for pure technical setups without fundamental component (use vcp-screener instead).
 ---
 
 # CANSLIM Stock Screener - Phase 3 (Full CANSLIM)

@@ -2,7 +2,7 @@
 
 [English README](README.md)
 
-**[Claude Managed Agents](https://docs.anthropic.com/en/docs/agents-and-tools/managed-agents) を使った AI エージェント構築のサンプルプロジェクトです。** Anthropic が提供するクラウドホスト型エージェントランタイム（コード実行・Web アクセス・ファイル管理を内蔵）を活用し、Streamlit チャット UI + 10 種類のトレーディング分析スキルを組み合わせた実用的なリファレンス実装です。トレーディングはあくまで題材の一例 — Skills / Agent / Environment / Session の接続パターンを学び、自分のプロジェクトの出発点としてお使いください。
+**[Claude Managed Agents](https://docs.anthropic.com/en/docs/agents-and-tools/managed-agents) を使った AI エージェント構築のサンプルプロジェクトです。** Anthropic が提供するクラウドホスト型エージェントランタイム（コード実行・Web アクセス・ファイル管理を内蔵）を活用し、Streamlit チャット UI + 11 種類のトレーディング分析スキルを組み合わせた実用的なリファレンス実装です。トレーディングはあくまで題材の一例 — Skills / Agent / Environment / Session の接続パターンを学び、自分のプロジェクトの出発点としてお使いください。
 
 > **Disclaimer**: 本ツールは教育目的の分析ツールです。投資助言ではありません。
 
@@ -32,6 +32,7 @@
 | `/earnings` | Earnings Calendar | 今週の決算発表カレンダー取得 |
 | `/econ-calendar` | Economic Calendar | FOMC・CPI・雇用統計などの経済イベント取得 |
 | `/breakout-plan` | Breakout Trade Planner | VCP 候補からエントリー/リスク計算付きトレードプラン生成 |
+| `/ibd-dd` | IBD Distribution Day Monitor | QQQ/SPY のディストリビューションデイ追跡と TQQQ エクスポージャー判定 |
 
 ## Architecture
 
@@ -51,7 +52,8 @@ Streamlit UI (app.py)
        ├── market-breadth-analyzer/
        ├── earnings-calendar/
        ├── economic-calendar-fetcher/
-       └── breakout-trade-planner/
+       ├── breakout-trade-planner/
+       └── ibd-distribution-day-monitor/
 ```
 
 各スキルは `SKILL.md`（エージェント向け指示）、`references/`（分析手法ドキュメント）、`scripts/`（Python スクリプト + テスト）で構成されています。
@@ -123,7 +125,7 @@ python bootstrap.py
 
 `bootstrap.py` は以下を自動実行し、取得した ID を `.env` に書き込みます:
 
-1. 10 スキルを Skills API に登録
+1. 11 スキルを Skills API に登録
 2. Agent を作成（スキル紐付け + システムプロンプト設定）
 3. Environment を作成（クラウドサンドボックス）
 

@@ -3,7 +3,7 @@
 ## Overview
 
 A reference implementation of a chat application using the Anthropic Managed Agents API.
-Ships with 10 specialized trading analysis skills and runs on Streamlit UI, CLI, or Docker.
+Ships with 11 specialized trading analysis skills and runs on Streamlit UI, CLI, or Docker.
 
 ## Architecture
 

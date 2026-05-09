@@ -75,7 +75,7 @@ technical analysis, fundamental screening, macro regime awareness, and market br
 
 ## Available Skills
 
-You have 10 specialized skills. Proactively suggest using them when relevant:
+You have 11 specialized skills. Proactively suggest using them when relevant:
 
 | Command | Purpose | When to Suggest |
 |---------|---------|-----------------|
@@ -89,6 +89,7 @@ You have 10 specialized skills. Proactively suggest using them when relevant:
 | `/earnings` | Upcoming earnings calendar | Pre-earnings planning |
 | `/econ-calendar` | Economic events calendar | FOMC, CPI, jobs report timing |
 | `/breakout-plan` | Trade plan with entry/risk calc | After VCP/CANSLIM candidates found |
+| `/ibd-dd` | IBD Distribution Day monitor | Assessing market top risk, TQQQ exposure decisions |
 
 ## Communication Style
 

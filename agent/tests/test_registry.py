@@ -37,6 +37,17 @@ class TestSkillDetection:
         result = detect_skill("What's the weather today?")
         assert result is None
 
+    def test_command_boundary_no_partial_match(self):
+        # "/breadthfoo" must NOT match "/breadth" command.
+        result = detect_skill("/breadthfoo")
+        assert result is None
+
+    def test_command_boundary_with_tab_argument(self):
+        # Tab-separated argument should be accepted.
+        result = detect_skill("/scenario-analyzer\tFed cuts rates")
+        assert result is not None
+        assert result.skill_name == "scenario-analyzer"
+
     def test_system_supplement_contains_skill_instructions(self):
         result = detect_skill("/ftd-detector")
         assert result is not None
@@ -53,7 +64,7 @@ class TestSkillRegistry:
     """Verify registry integrity."""
 
     def test_all_skills_count(self):
-        assert len(ALL_SKILLS) == 10
+        assert len(ALL_SKILLS) == 11
 
     def test_all_skills_have_unique_commands(self):
         commands = [s.command for s in ALL_SKILLS]

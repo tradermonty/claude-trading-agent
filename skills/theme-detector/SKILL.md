@@ -1,6 +1,6 @@
 ---
 name: theme-detector
-description: Detect and analyze trending market themes across sectors. Use when user asks about current market themes, trending sectors, sector rotation, thematic investing, what themes are hot or cold, or wants to identify bullish and bearish market narratives with lifecycle analysis.
+description: Detect and analyze trending market themes across sectors using FinViz industry data and thematic ETF analysis. Identifies bullish/bearish narratives with lifecycle stage (emerging, accelerating, mature, fading). TRIGGER when user types /theme-detector, asks about テーマ検出, 市場テーマ, セクターローテーション, trending themes, sector rotation, thematic investing, or what themes are hot/cold. SKIP for individual stock analysis (use vcp-screener or canslim-screener) or pure macro questions (use macro-regime-detector).
 ---
 
 # Theme Detector

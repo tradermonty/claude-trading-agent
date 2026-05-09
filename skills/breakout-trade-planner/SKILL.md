@@ -1,6 +1,6 @@
 ---
 name: breakout-trade-planner
-description: Generate Minervini-style breakout trade plans from VCP screener output with worst-case risk calculation, portfolio heat management, and Alpaca-compatible order templates (stop-limit bracket for pre-placement, limit bracket for post-confirmation). Use when user has VCP screener results and wants actionable trade plans with entry/stop/target levels and position sizing.
+description: Generate Minervini-style breakout trade plans from VCP screener output with worst-case risk calculation, portfolio heat management, and Alpaca-compatible order templates (stop-limit bracket for pre-placement, limit bracket for post-confirmation). TRIGGER when user types /breakout-plan, asks about ブレイクアウト計画, トレードプラン, エントリー計画, ポジションサイズ, breakout plan, position sizing, entry/stop/target levels for VCP candidates, or building executable orders from screener output. SKIP for portfolio-level allocation decisions or for non-breakout strategies.
 ---
 
 # Breakout Trade Planner
