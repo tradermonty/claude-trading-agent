@@ -13,8 +13,6 @@ from __future__ import annotations
 import csv
 import sys
 from pathlib import Path
-from collections import defaultdict
-
 
 AXES = ["score_completeness", "component_coverage", "actionable_takeaway"]
 THRESHOLD = 0.90
@@ -47,8 +45,10 @@ def main() -> None:
                 try:
                     scores[axis] = int(val)
                 except ValueError:
-                    print(f"  WARN: non-integer score in {row['pair']} {row['arm']} {axis}={val!r}",
-                          file=sys.stderr)
+                    print(
+                        f"  WARN: non-integer score in {row['pair']} {row['arm']} {axis}={val!r}",
+                        file=sys.stderr,
+                    )
                     row_complete = False
                     break
             if not row_complete:
@@ -57,12 +57,14 @@ def main() -> None:
             (rows_a if row["arm"] == "A" else rows_b).append(scores)
 
     if incomplete:
-        print(f"NOTICE: {incomplete} row(s) have empty/invalid scores; skipped.\n",
-              file=sys.stderr)
+        print(f"NOTICE: {incomplete} row(s) have empty/invalid scores; skipped.\n", file=sys.stderr)
 
     if not rows_a or not rows_b:
-        print(f"ERROR: need at least 1 fully-scored row per arm "
-              f"(have A={len(rows_a)}, B={len(rows_b)})", file=sys.stderr)
+        print(
+            f"ERROR: need at least 1 fully-scored row per arm "
+            f"(have A={len(rows_a)}, B={len(rows_b)})",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print(f"=== Aggregated scores ({len(rows_a)} A rows, {len(rows_b)} B rows) ===\n")
@@ -85,8 +87,10 @@ def main() -> None:
     total_ratio = (b_total / a_total) if a_total else 0.0
     total_verdict = "PASS" if total_ratio >= THRESHOLD else "FAIL"
     print("-" * 70)
-    print(f"{'TOTAL (sum of axes)':<25} {a_total:>10.2f} {b_total:>10.2f} "
-          f"{total_ratio:>10.1%} {total_verdict:>10}")
+    print(
+        f"{'TOTAL (sum of axes)':<25} {a_total:>10.2f} {b_total:>10.2f} "
+        f"{total_ratio:>10.1%} {total_verdict:>10}"
+    )
 
     print()
     if not fail_axes and total_verdict == "PASS":

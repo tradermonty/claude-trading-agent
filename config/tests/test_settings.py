@@ -8,7 +8,6 @@ from config.settings import (
     _parse_log_level,
     _parse_positive_int,
     _parse_ui_locale,
-    validate_runtime_environment,
 )
 
 
@@ -62,7 +61,9 @@ class TestValidateRuntimeEnvironment:
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}, clear=False):
             # Need to reload to pick up the patched env
             import importlib
+
             import config.settings
+
             importlib.reload(config.settings)
             errors = config.settings.validate_runtime_environment()
             assert len(errors) > 0

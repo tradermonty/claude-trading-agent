@@ -10,12 +10,16 @@ import pytest
 def _reload_sanitizer():
     """Reload sanitizer module so _KNOWN_SECRETS picks up patched env vars."""
     import importlib
+
     import agent.sanitizer
 
-    with mock.patch.dict(os.environ, {
-        "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",
-        "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",
-    }):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",
+            "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",
+        },
+    ):
         importlib.reload(agent.sanitizer)
         yield
     importlib.reload(agent.sanitizer)

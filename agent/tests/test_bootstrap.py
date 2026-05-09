@@ -51,9 +51,7 @@ class TestRegisterSkill:
         client.beta.skills.create.assert_called_once()
         client.beta.skills.versions.create.assert_not_called()
 
-    def test_path_c_falls_back_and_reports_replaced_id(
-        self, fake_skill_dir: Path
-    ) -> None:
+    def test_path_c_falls_back_and_reports_replaced_id(self, fake_skill_dir: Path) -> None:
         # Path C: existing ID present but versions.create fails (e.g., skill
         # was deleted on Anthropic side). Fall back to skills.create AND
         # report the stale ID so caller can detach it from the agent.
@@ -89,9 +87,7 @@ class TestRegisterAllSkills:
         monkeypatch.setenv("FAKE_SKILL_ID", "skill_pre_existing_111")
 
         client = MagicMock()
-        results, new_ids, replacements = bootstrap.register_all_skills(
-            client, skills_only=True
-        )
+        results, new_ids, replacements = bootstrap.register_all_skills(client, skills_only=True)
 
         assert results == {"FAKE_SKILL_ID": "skill_pre_existing_111"}
         assert new_ids == []
@@ -110,9 +106,7 @@ class TestRegisterAllSkills:
         client = MagicMock()
         client.beta.skills.create.return_value = MagicMock(id="skill_brand_new_222")
 
-        results, new_ids, replacements = bootstrap.register_all_skills(
-            client, skills_only=True
-        )
+        results, new_ids, replacements = bootstrap.register_all_skills(client, skills_only=True)
 
         assert results == {"FAKE_SKILL_ID": "skill_brand_new_222"}
         assert new_ids == ["skill_brand_new_222"]
@@ -132,17 +126,13 @@ class TestRegisterAllSkills:
         client.beta.skills.versions.create.side_effect = RuntimeError("404 not found")
         client.beta.skills.create.return_value = MagicMock(id="skill_recovered_444")
 
-        results, new_ids, replacements = bootstrap.register_all_skills(
-            client, skills_only=True
-        )
+        results, new_ids, replacements = bootstrap.register_all_skills(client, skills_only=True)
 
         assert results == {"FAKE_SKILL_ID": "skill_recovered_444"}
         assert new_ids == []  # NOT a pure addition
         assert replacements == {"skill_stale_333": "skill_recovered_444"}
 
-    def test_total_failure_exits_nonzero(
-        self, monkeypatch, fake_skill_dir: Path
-    ) -> None:
+    def test_total_failure_exits_nonzero(self, monkeypatch, fake_skill_dir: Path) -> None:
         # If both versions.create AND skills.create fail, sys.exit(1) is called.
         monkeypatch.setattr(bootstrap, "SKILL_ENV_KEYS", {"fake-skill": "FAKE_SKILL_ID"})
         monkeypatch.setattr(bootstrap, "SKILLS_DIR", fake_skill_dir.parent)
@@ -156,9 +146,7 @@ class TestRegisterAllSkills:
             bootstrap.register_all_skills(client, skills_only=True)
         assert exc_info.value.code == 1
 
-    def test_default_mode_skips_existing(
-        self, monkeypatch, fake_skill_dir: Path
-    ) -> None:
+    def test_default_mode_skips_existing(self, monkeypatch, fake_skill_dir: Path) -> None:
         # Without flags, existing IDs are skipped (no API call)
         monkeypatch.setattr(bootstrap, "SKILL_ENV_KEYS", {"fake-skill": "FAKE_SKILL_ID"})
         monkeypatch.setattr(bootstrap, "SKILLS_DIR", fake_skill_dir.parent)
@@ -202,13 +190,9 @@ class TestAttachNewSkillsToAgent:
         client = MagicMock()
         existing_skill = MagicMock()
         existing_skill.skill_id = "skill_a"
-        client.beta.agents.retrieve.return_value = MagicMock(
-            version=5, skills=[existing_skill]
-        )
+        client.beta.agents.retrieve.return_value = MagicMock(version=5, skills=[existing_skill])
 
-        bootstrap.attach_new_skills_to_agent(
-            client, "agent_id_777", ["skill_a", "skill_b"]
-        )
+        bootstrap.attach_new_skills_to_agent(client, "agent_id_777", ["skill_a", "skill_b"])
 
         client.beta.agents.update.assert_called_once()
         kwargs = client.beta.agents.update.call_args.kwargs
@@ -224,9 +208,7 @@ class TestAttachNewSkillsToAgent:
         stale.skill_id = "skill_stale"
         keep = MagicMock()
         keep.skill_id = "skill_keep"
-        client.beta.agents.retrieve.return_value = MagicMock(
-            version=7, skills=[stale, keep]
-        )
+        client.beta.agents.retrieve.return_value = MagicMock(version=7, skills=[stale, keep])
 
         bootstrap.attach_new_skills_to_agent(
             client,
@@ -239,8 +221,8 @@ class TestAttachNewSkillsToAgent:
         kwargs = client.beta.agents.update.call_args.kwargs
         skill_ids = [s["skill_id"] for s in kwargs["skills"]]
         assert "skill_stale" not in skill_ids  # detached
-        assert "skill_keep" in skill_ids       # preserved
-        assert "skill_fresh" in skill_ids      # newly attached
+        assert "skill_keep" in skill_ids  # preserved
+        assert "skill_fresh" in skill_ids  # newly attached
 
     def test_replacement_and_addition_combined(self) -> None:
         # Agent has skill_stale + skill_keep. Replace stale → fresh AND
@@ -250,9 +232,7 @@ class TestAttachNewSkillsToAgent:
         stale.skill_id = "skill_stale"
         keep = MagicMock()
         keep.skill_id = "skill_keep"
-        client.beta.agents.retrieve.return_value = MagicMock(
-            version=10, skills=[stale, keep]
-        )
+        client.beta.agents.retrieve.return_value = MagicMock(version=10, skills=[stale, keep])
 
         bootstrap.attach_new_skills_to_agent(
             client,
@@ -274,8 +254,6 @@ class TestAttachNewSkillsToAgent:
 
     def test_no_op_with_empty_replacements_dict(self) -> None:
         client = MagicMock()
-        bootstrap.attach_new_skills_to_agent(
-            client, "agent_id_888", [], replacements={}
-        )
+        bootstrap.attach_new_skills_to_agent(client, "agent_id_888", [], replacements={})
         client.beta.agents.retrieve.assert_not_called()
         client.beta.agents.update.assert_not_called()

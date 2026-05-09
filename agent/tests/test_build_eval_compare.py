@@ -81,9 +81,7 @@ class TestBuildE2E:
         assert rows[1][2] == "A"
         assert rows[2][2] == "B"
 
-    def test_refuses_to_overwrite_scored_csv_without_force(
-        self, tmp_path, monkeypatch
-    ):
+    def test_refuses_to_overwrite_scored_csv_without_force(self, tmp_path, monkeypatch):
         eval_dir = _make_eval_dir(tmp_path)
         # First build, then fill in scores
         monkeypatch.setattr(sys, "argv", ["build_eval_compare.py", str(eval_dir)])
@@ -115,8 +113,7 @@ class TestBuildE2E:
             )
         )
 
-        monkeypatch.setattr(sys, "argv",
-                            ["build_eval_compare.py", str(eval_dir), "--force"])
+        monkeypatch.setattr(sys, "argv", ["build_eval_compare.py", str(eval_dir), "--force"])
         bec.main()
         # After --force, the row should be empty again
         with scoring.open() as f:
