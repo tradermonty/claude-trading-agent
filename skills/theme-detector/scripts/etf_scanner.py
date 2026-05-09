@@ -11,7 +11,7 @@ FMP API key is optional; without it, yfinance is used exclusively.
 
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 try:
     import numpy as np
@@ -85,7 +85,7 @@ class ETFScanner:
 
     _ENDPOINT_FAILURE_THRESHOLD = 3  # disable endpoint after N consecutive failures
 
-    def __init__(self, fmp_api_key: Optional[str] = None, rate_limit_sec: float = 0.3):
+    def __init__(self, fmp_api_key: str | None = None, rate_limit_sec: float = 0.3):
         self._cache: dict[str, pd.DataFrame] = {}
         self._fmp_api_key = fmp_api_key
         self._rate_limit_sec = rate_limit_sec
@@ -134,8 +134,8 @@ class ETFScanner:
         self._last_request_time = time.time()
 
     def _fmp_request(
-        self, endpoint_key: str, symbols_str: str, extra_params: Optional[dict] = None
-    ) -> Optional[Any]:
+        self, endpoint_key: str, symbols_str: str, extra_params: dict | None = None
+    ) -> Any | None:
         """Try each endpoint (stable -> v3) with circuit breaker.
 
         Endpoints that fail consecutively are disabled to avoid wasting
@@ -592,7 +592,7 @@ class ETFScanner:
     # Shared utilities (unchanged)
     # -------------------------------------------------------------------
     @staticmethod
-    def _calculate_rsi(prices: pd.Series, period: int = 14) -> Optional[float]:
+    def _calculate_rsi(prices: pd.Series, period: int = 14) -> float | None:
         """Calculate RSI using Wilder's smoothing method."""
         if prices is None or len(prices) < period + 1:
             return None
@@ -644,7 +644,7 @@ class ETFScanner:
 
         return result
 
-    def _get_pe_ratio(self, symbol: str) -> Optional[float]:
+    def _get_pe_ratio(self, symbol: str) -> float | None:
         """Get trailing P/E ratio for a symbol via yfinance info."""
         try:
             ticker = yf.Ticker(symbol)
@@ -656,7 +656,7 @@ class ETFScanner:
             pass
         return None
 
-    def _get_cached(self, symbol: str, period: str = "6mo") -> Optional[pd.DataFrame]:
+    def _get_cached(self, symbol: str, period: str = "6mo") -> pd.DataFrame | None:
         """Get cached download or fetch new data."""
         cache_key = f"{symbol}_{period}"
         if cache_key in self._cache:

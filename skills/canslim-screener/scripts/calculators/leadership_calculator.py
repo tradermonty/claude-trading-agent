@@ -30,13 +30,12 @@ Scoring:
 - 0 points: Relative underperformance > -20% (avoid)
 """
 
-from typing import Optional
 
 
 def calculate_leadership(
     historical_prices: list[dict],
-    sp500_historical: Optional[list[dict]] = None,
-    sp500_performance: Optional[float] = None,
+    sp500_historical: list[dict] | None = None,
+    sp500_performance: float | None = None,
 ) -> dict:
     """
     Calculate Leadership/Relative Strength score (L component)
@@ -222,7 +221,7 @@ def score_leadership(relative_performance: float, has_benchmark: bool) -> tuple:
 def interpret_leadership(
     score: int,
     stock_performance: float,
-    sp500_performance: Optional[float],
+    sp500_performance: float | None,
     relative_performance: float,
     days_analyzed: int,
 ) -> str:

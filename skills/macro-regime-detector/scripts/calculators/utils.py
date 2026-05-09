@@ -6,7 +6,6 @@ Provides monthly downsampling, ratio calculation, moving averages,
 crossover detection, momentum computation, and transition scoring.
 """
 
-from typing import Optional
 
 
 def downsample_to_monthly(daily_history: list[dict]) -> list[dict]:
@@ -71,7 +70,7 @@ def calculate_ratio(numerator_monthly: list[dict], denominator_monthly: list[dic
     return result
 
 
-def compute_sma(values: list[float], period: int) -> Optional[float]:
+def compute_sma(values: list[float], period: int) -> float | None:
     """
     Compute Simple Moving Average from a list of values (most recent first).
 
@@ -154,7 +153,7 @@ def detect_crossover(values: list[float], short_period: int = 6, long_period: in
     }
 
 
-def compute_roc(values: list[float], period: int) -> Optional[float]:
+def compute_roc(values: list[float], period: int) -> float | None:
     """
     Compute Rate of Change (%) over `period` data points.
 
@@ -174,7 +173,7 @@ def compute_roc(values: list[float], period: int) -> Optional[float]:
     return (current - past) / past * 100
 
 
-def compute_percentile(values: list[float], current: float) -> Optional[float]:
+def compute_percentile(values: list[float], current: float) -> float | None:
     """
     Compute percentile rank of current value within the series.
 
@@ -188,7 +187,7 @@ def compute_percentile(values: list[float], current: float) -> Optional[float]:
 
 def compute_rolling_correlation(
     series_a: list[float], series_b: list[float], window: int
-) -> Optional[float]:
+) -> float | None:
     """
     Compute rolling Pearson correlation between two series over a window.
 
@@ -225,7 +224,7 @@ STALE_CROSSOVER_MONTHS = 3
 
 def determine_direction(
     crossover: dict,
-    roc_3m: Optional[float],
+    roc_3m: float | None,
     positive_label: str,
     negative_label: str,
     neutral_label: str = "neutral",
@@ -288,10 +287,10 @@ def determine_direction(
 
 def score_transition_signal(
     crossover: dict,
-    roc_short: Optional[float],
-    roc_long: Optional[float],
-    sma_short: Optional[float],
-    sma_long: Optional[float],
+    roc_short: float | None,
+    roc_long: float | None,
+    sma_short: float | None,
+    sma_long: float | None,
 ) -> int:
     """
     Score transition signal strength (0-100) from crossover, momentum, and MA data.

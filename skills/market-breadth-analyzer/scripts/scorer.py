@@ -25,7 +25,6 @@ Health Zone Mapping (100 = Healthy):
   0-19:   Critical  - Capital preservation
 """
 
-from typing import Optional
 
 COMPONENT_WEIGHTS = {
     "breadth_level_trend": 0.25,
@@ -48,7 +47,7 @@ COMPONENT_LABELS = {
 
 def calculate_composite_score(
     component_scores: dict[str, float],
-    data_availability: Optional[dict[str, bool]] = None,
+    data_availability: dict[str, bool] | None = None,
 ) -> dict:
     """
     Calculate weighted composite market breadth health score.

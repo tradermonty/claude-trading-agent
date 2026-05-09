@@ -16,7 +16,6 @@ Scoring (0-100 = Transition Signal Strength):
   80-100: Strong confirmed transition (crossover + momentum + acceleration aligned)
 """
 
-from typing import Optional
 
 from .utils import (
     STALE_CROSSOVER_MONTHS,
@@ -138,7 +137,7 @@ def calculate_concentration(rsp_history: list[dict], spy_history: list[dict]) ->
 
 
 def _describe_signal(
-    score: int, crossover: dict, roc_3m: Optional[float], roc_12m: Optional[float], ratio: float
+    score: int, crossover: dict, roc_3m: float | None, roc_12m: float | None, ratio: float
 ) -> str:
     if score >= 80:
         return f"STRONG TRANSITION: RSP/SPY {crossover['type'].replace('_', ' ')} confirmed with aligned momentum"

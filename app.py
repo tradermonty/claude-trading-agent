@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import streamlit as st
+
 from agent.client import ManagedAgentClient
 from agent.sanitizer import sanitize
-from skills.registry import normalize_command
 from config.settings import (
     APP_ICON,
     APP_LOG_FORMAT,
@@ -21,6 +21,7 @@ from config.settings import (
     get_auth_description,
     validate_runtime_environment,
 )
+from skills.registry import normalize_command
 
 logger = logging.getLogger(__name__)
 _LOGGING_CONFIGURED = False
@@ -383,7 +384,7 @@ def render_app() -> None:
         row1 = st.columns(2)
         row2 = st.columns(2)
         all_cols = row1 + row2
-        for col, (label, prompt_text) in zip(all_cols, _sample_prompts):
+        for col, (label, prompt_text) in zip(all_cols, _sample_prompts, strict=True):
             if col.button(label, use_container_width=True):
                 st.session_state._pending_prompt = prompt_text
                 st.rerun()

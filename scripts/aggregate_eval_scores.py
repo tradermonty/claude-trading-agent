@@ -13,8 +13,6 @@ from __future__ import annotations
 import csv
 import sys
 from pathlib import Path
-from collections import defaultdict
-
 
 AXES = ["score_completeness", "component_coverage", "actionable_takeaway"]
 THRESHOLD = 0.90

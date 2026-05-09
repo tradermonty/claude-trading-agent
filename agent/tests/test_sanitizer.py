@@ -10,6 +10,7 @@ import pytest
 def _reload_sanitizer():
     """Reload sanitizer module so _KNOWN_SECRETS picks up patched env vars."""
     import importlib
+
     import agent.sanitizer
 
     with mock.patch.dict(os.environ, {

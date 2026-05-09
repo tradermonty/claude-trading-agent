@@ -7,13 +7,14 @@ from collections.abc import Iterator
 from typing import Literal, NotRequired, TypedDict
 
 from anthropic import Anthropic
+
 from config.settings import (
     AGENT_ID,
     AGENT_NAME,
     AGENT_SYSTEM_PROMPT,
+    BREAKOUT_TRADE_PLANNER_SKILL_ID,
     CANSLIM_SCREENER_SKILL_ID,
     DEFAULT_MODEL,
-    BREAKOUT_TRADE_PLANNER_SKILL_ID,
     EARNINGS_CALENDAR_SKILL_ID,
     ECONOMIC_CALENDAR_SKILL_ID,
     ENVIRONMENT_ID,
@@ -188,6 +189,7 @@ class ManagedAgentClient:
                     file_content = tool_input.get("content", "")
                     if file_path and file_content:
                         import os
+
                         from agent.sanitizer import sanitize as _sanitize_content
                         yield {
                             "type": "file_created",

@@ -16,7 +16,6 @@ Features:
 import os
 import sys
 import time
-from typing import Optional
 
 try:
     import requests
@@ -31,7 +30,7 @@ class FMPClient:
     BASE_URL = "https://financialmodelingprep.com/api/v3"
     RATE_LIMIT_DELAY = 0.3  # 300ms between requests
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.getenv("FMP_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -47,7 +46,7 @@ class FMPClient:
         self.max_retries = 1
         self.api_calls_made = 0
 
-    def _rate_limited_get(self, url: str, params: Optional[dict] = None) -> Optional[dict]:
+    def _rate_limited_get(self, url: str, params: dict | None = None) -> dict | None:
         if self.rate_limit_reached:
             return None
 
@@ -86,7 +85,7 @@ class FMPClient:
             print(f"ERROR: Request exception: {e}", file=sys.stderr)
             return None
 
-    def get_sp500_constituents(self) -> Optional[list[dict]]:
+    def get_sp500_constituents(self) -> list[dict] | None:
         """Fetch S&P 500 constituent list.
 
         Returns:
@@ -103,7 +102,7 @@ class FMPClient:
             self.cache[cache_key] = data
         return data
 
-    def get_quote(self, symbols: str) -> Optional[list[dict]]:
+    def get_quote(self, symbols: str) -> list[dict] | None:
         """Fetch real-time quote data for one or more symbols (comma-separated)"""
         cache_key = f"quote_{symbols}"
         if cache_key in self.cache:
@@ -115,7 +114,7 @@ class FMPClient:
             self.cache[cache_key] = data
         return data
 
-    def get_historical_prices(self, symbol: str, days: int = 365) -> Optional[dict]:
+    def get_historical_prices(self, symbol: str, days: int = 365) -> dict | None:
         """Fetch historical daily OHLCV data"""
         cache_key = f"prices_{symbol}_{days}"
         if cache_key in self.cache:

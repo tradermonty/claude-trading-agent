@@ -23,13 +23,12 @@ Also calculates:
 - Risk % per share (entry to stop distance)
 """
 
-from typing import Optional
 
 
 def calculate_pivot_proximity(
     current_price: float,
-    pivot_price: Optional[float],
-    last_contraction_low: Optional[float] = None,
+    pivot_price: float | None,
+    last_contraction_low: float | None = None,
     breakout_volume: bool = False,
 ) -> dict:
     """

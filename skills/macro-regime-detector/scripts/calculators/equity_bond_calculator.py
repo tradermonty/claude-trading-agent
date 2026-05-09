@@ -18,7 +18,6 @@ Transition signals:
 - SPY/TLT ratio crossover + correlation regime change = high confidence
 """
 
-from typing import Optional
 
 from .utils import (
     calculate_ratio,
@@ -144,7 +143,7 @@ def _compute_monthly_returns(closes: list[float]) -> list[float]:
     return returns
 
 
-def _classify_correlation_regime(corr_6m: Optional[float], corr_12m: Optional[float]) -> str:
+def _classify_correlation_regime(corr_6m: float | None, corr_12m: float | None) -> str:
     """Classify the stock-bond correlation regime."""
     if corr_6m is None:
         return "unknown"

@@ -15,7 +15,6 @@ Features:
 import os
 import sys
 import time
-from typing import Optional
 
 try:
     import requests
@@ -67,7 +66,7 @@ class FMPClient:
     BASE_URL = "https://financialmodelingprep.com/api/v3"
     RATE_LIMIT_DELAY = 0.3  # 300ms between requests (200 requests/minute max)
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         """
         Initialize FMP API client
 
@@ -97,8 +96,8 @@ class FMPClient:
         self._ENDPOINT_FAILURE_THRESHOLD = 3
 
     def _rate_limited_get(
-        self, url: str, params: Optional[dict] = None, quiet: bool = False
-    ) -> Optional[dict]:
+        self, url: str, params: dict | None = None, quiet: bool = False
+    ) -> dict | None:
         """
         Make rate-limited GET request with retry logic
 
@@ -209,7 +208,7 @@ class FMPClient:
 
     def get_income_statement(
         self, symbol: str, period: str = "quarter", limit: int = 8
-    ) -> Optional[list[dict]]:
+    ) -> list[dict] | None:
         """
         Fetch income statement data (quarterly or annual)
 
@@ -240,7 +239,7 @@ class FMPClient:
 
         return data
 
-    def get_quote(self, symbols: str) -> Optional[list[dict]]:
+    def get_quote(self, symbols: str) -> list[dict] | None:
         """
         Fetch real-time quote data
 
@@ -269,7 +268,7 @@ class FMPClient:
 
         return data
 
-    def get_historical_prices(self, symbol: str, days: int = 365) -> Optional[dict]:
+    def get_historical_prices(self, symbol: str, days: int = 365) -> dict | None:
         """
         Fetch historical daily price data
 
@@ -297,7 +296,7 @@ class FMPClient:
 
         return data
 
-    def get_profile(self, symbol: str) -> Optional[list[dict]]:
+    def get_profile(self, symbol: str) -> list[dict] | None:
         """
         Fetch company profile (sector, industry, description)
 
@@ -325,7 +324,7 @@ class FMPClient:
 
         return data
 
-    def get_institutional_holders(self, symbol: str) -> Optional[list[dict]]:
+    def get_institutional_holders(self, symbol: str) -> list[dict] | None:
         """
         Fetch institutional holder data (Phase 2: I component)
 

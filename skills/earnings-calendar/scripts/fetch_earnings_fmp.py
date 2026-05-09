@@ -21,7 +21,6 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 import requests
 
@@ -44,7 +43,7 @@ class FMPEarningsCalendar:
         self.api_key = api_key
         self.us_only = us_only
 
-    def fetch_earnings_calendar(self, start_date: str, end_date: str) -> Optional[list[dict]]:
+    def fetch_earnings_calendar(self, start_date: str, end_date: str) -> list[dict] | None:
         """
         Fetch earnings calendar from FMP API
 
@@ -197,7 +196,7 @@ class FMPEarningsCalendar:
 
         return filtered
 
-    def normalize_timing(self, time_value: Optional[str]) -> str:
+    def normalize_timing(self, time_value: str | None) -> str:
         """
         Normalize timing values to BMO/AMC/TAS
 
@@ -300,7 +299,7 @@ class FMPEarningsCalendar:
         )
 
 
-def get_api_key() -> Optional[str]:
+def get_api_key() -> str | None:
     """
     Get API key from environment or command line
 

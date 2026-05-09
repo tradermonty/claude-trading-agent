@@ -28,7 +28,6 @@ State Caps:
   Wide-and-Loose pattern → max "Developing VCP"  (Textbook/Strong/Good禁止)
 """
 
-from typing import Optional
 
 from calculators.execution_state import apply_state_cap
 
@@ -56,10 +55,10 @@ def calculate_composite_score(
     pivot_score: float,
     rs_score: float,
     valid_vcp: bool = True,
-    execution_state: Optional[str] = None,
-    pattern_type: Optional[str] = None,
+    execution_state: str | None = None,
+    pattern_type: str | None = None,
     wide_and_loose: bool = False,
-    sma200_extension_pct: Optional[float] = None,
+    sma200_extension_pct: float | None = None,
 ) -> dict:
     """
     Calculate weighted composite VCP score with State Caps applied.

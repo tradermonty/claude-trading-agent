@@ -18,7 +18,6 @@ import argparse
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 # Add calculators directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "calculators"))
@@ -123,7 +122,7 @@ def parse_arguments():
 
 def analyze_stock(
     symbol: str, client: FMPClient, market_data: dict, sp500_historical: list[dict] = None
-) -> Optional[dict]:
+) -> dict | None:
     """
     Analyze a single stock using CANSLIM Phase 3 components (7 components: C, A, N, S, L, I, M)
 

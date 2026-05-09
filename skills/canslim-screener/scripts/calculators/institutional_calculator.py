@@ -27,7 +27,6 @@ Scoring:
 
 import os
 import sys
-from typing import Optional
 
 # Optional: Import Finviz client for fallback data (requires finviz library)
 try:
@@ -61,8 +60,8 @@ SUPERINVESTORS = [
 
 def calculate_institutional_sponsorship(
     institutional_holders: list[dict],
-    profile: Optional[dict] = None,
-    symbol: Optional[str] = None,
+    profile: dict | None = None,
+    symbol: str | None = None,
     use_finviz_fallback: bool = True,
 ) -> dict:
     """
@@ -202,9 +201,9 @@ def calculate_institutional_sponsorship(
 
 def score_institutional_sponsorship(
     num_holders: int,
-    ownership_pct: Optional[float],
+    ownership_pct: float | None,
     superinvestor_present: bool,
-    quality_warning: Optional[str],
+    quality_warning: str | None,
 ) -> int:
     """
     Score institutional sponsorship based on O'Neil's criteria
@@ -274,7 +273,7 @@ def score_institutional_sponsorship(
 
 def interpret_institutional_sponsorship(
     num_holders: int,
-    ownership_pct: Optional[float],
+    ownership_pct: float | None,
     superinvestor_present: bool,
     superinvestors: list[str],
 ) -> str:

@@ -12,7 +12,6 @@ import csv
 import io
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
 
 try:
     import requests
@@ -49,7 +48,7 @@ FINVIZ_TO_WORKSHEET = {
 WORKSHEET_TO_DISPLAY = {v: k for k, v in FINVIZ_TO_WORKSHEET.items()}
 
 
-def _safe_float(value) -> Optional[float]:
+def _safe_float(value) -> float | None:
     """Convert to float, return None if empty or invalid."""
     if value is None or str(value).strip() == "":
         return None
@@ -59,7 +58,7 @@ def _safe_float(value) -> Optional[float]:
         return None
 
 
-def _calculate_slope(values: list[float]) -> Optional[float]:
+def _calculate_slope(values: list[float]) -> float | None:
     """Calculate slope from a list of values using simple linear regression.
 
     Uses least-squares fit: slope = sum((x-xbar)(y-ybar)) / sum((x-xbar)^2)
@@ -234,7 +233,7 @@ def build_summary_from_timeseries(sector_timeseries: dict[str, dict]) -> list[di
     return rows
 
 
-def get_sector_uptrend_3point(sector_name: str, all_data: dict[str, dict]) -> Optional[dict]:
+def get_sector_uptrend_3point(sector_name: str, all_data: dict[str, dict]) -> dict | None:
     """Get ratio + ma_10 + slope for a specific sector.
 
     Args:

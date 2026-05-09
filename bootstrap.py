@@ -296,8 +296,8 @@ def attach_new_skills_to_agent(
 
 def create_agent(client, skill_ids: list[str]) -> str:
     """Create an agent with skills attached."""
-    from config.settings import AGENT_NAME, AGENT_SYSTEM_PROMPT, DEFAULT_MODEL
     from agent.client import _build_system_prompt
+    from config.settings import AGENT_NAME, AGENT_SYSTEM_PROMPT, DEFAULT_MODEL
 
     system = _build_system_prompt(AGENT_SYSTEM_PROMPT)
     skills = [

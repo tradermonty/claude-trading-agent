@@ -11,7 +11,6 @@ All sub-scores are direction-aware.
 """
 
 import statistics
-from typing import Optional
 
 LIFECYCLE_WEIGHTS = {
     "duration": 0.25,
@@ -23,10 +22,10 @@ LIFECYCLE_WEIGHTS = {
 
 
 def estimate_duration_score(
-    perf_1m: Optional[float],
-    perf_3m: Optional[float],
-    perf_6m: Optional[float],
-    perf_1y: Optional[float],
+    perf_1m: float | None,
+    perf_3m: float | None,
+    perf_6m: float | None,
+    perf_1y: float | None,
     is_bearish: bool,
 ) -> float:
     """Count horizons where trend is active. Each active = 25 points.
@@ -131,7 +130,7 @@ def etf_proliferation_score(etf_count: int) -> float:
 
 
 def has_sufficient_lifecycle_data(
-    extremity: Optional[float], price_extreme: Optional[float], valuation: Optional[float]
+    extremity: float | None, price_extreme: float | None, valuation: float | None
 ) -> bool:
     """Check whether stock-derived lifecycle sub-scores have real data.
 
@@ -161,11 +160,11 @@ def classify_stage(maturity: float) -> str:
 
 
 def calculate_lifecycle_maturity(
-    duration: Optional[float],
-    extremity: Optional[float],
-    price_extreme: Optional[float],
-    valuation: Optional[float],
-    etf_prolif: Optional[float],
+    duration: float | None,
+    extremity: float | None,
+    price_extreme: float | None,
+    valuation: float | None,
+    etf_prolif: float | None,
 ) -> float:
     """Weighted sum of lifecycle sub-scores, clamped 0-100.
 
