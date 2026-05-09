@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import urllib.error
 from datetime import datetime, timedelta
 
 import pytest
@@ -10,11 +11,15 @@ import pytest
 # Add parent directory to path so we can import the script module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import get_economic_calendar as economic_calendar
 from get_economic_calendar import (
+    fetch_economic_calendar,
     format_event_output,
     get_api_key,
     validate_date_range,
 )
+
+DUMMY_API_KEY = "dummy-key"  # pragma: allowlist secret
 
 # ---------------------------------------------------------------------------
 # Sample fixtures
@@ -158,3 +163,170 @@ class TestFormatEventOutput:
     def test_unknown_format_raises(self):
         with pytest.raises(ValueError, match="Unknown output format"):
             format_event_output([], "csv")
+
+
+class FakeResponse:
+    def __init__(self, status: int, payload):
+        self.status = status
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
+
+
+class TestFetchEconomicCalendar:
+    def test_fetch_success_builds_request_and_returns_events(self, monkeypatch):
+        seen = {}
+
+        def fake_urlopen(request):
+            seen["url"] = request.full_url
+            seen["headers"] = request.headers
+            return FakeResponse(200, SAMPLE_EVENTS)
+
+        monkeypatch.setattr(economic_calendar.urllib.request, "urlopen", fake_urlopen)
+
+        result = fetch_economic_calendar("2026-05-09", "2026-05-10", DUMMY_API_KEY)
+
+        assert result == SAMPLE_EVENTS
+        assert seen["url"].endswith("from=2026-05-09&to=2026-05-10")
+        assert seen["headers"]["Apikey"] == DUMMY_API_KEY
+
+    def test_fetch_rejects_non_list_response(self, monkeypatch):
+        monkeypatch.setattr(
+            economic_calendar.urllib.request,
+            "urlopen",
+            lambda request: FakeResponse(200, {"unexpected": True}),
+        )
+
+        with pytest.raises(ValueError, match="Unexpected API response format"):
+            fetch_economic_calendar("2026-05-09", "2026-05-10", DUMMY_API_KEY)
+
+    def test_fetch_rejects_non_200_response(self, monkeypatch):
+        monkeypatch.setattr(
+            economic_calendar.urllib.request,
+            "urlopen",
+            lambda request: FakeResponse(503, []),
+        )
+
+        with pytest.raises(ValueError, match="status code 503"):
+            fetch_economic_calendar("2026-05-09", "2026-05-10", DUMMY_API_KEY)
+
+    def test_fetch_wraps_http_error_body(self, monkeypatch):
+        class ErrorBody:
+            def read(self):
+                return b"quota exceeded"
+
+            def close(self):
+                pass
+
+        def fake_urlopen(request):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                429,
+                "Too Many Requests",
+                hdrs={},
+                fp=ErrorBody(),
+            )
+
+        monkeypatch.setattr(economic_calendar.urllib.request, "urlopen", fake_urlopen)
+
+        with pytest.raises(urllib.error.HTTPError, match="quota exceeded"):
+            fetch_economic_calendar("2026-05-09", "2026-05-10", DUMMY_API_KEY)
+
+    def test_fetch_wraps_url_error(self, monkeypatch):
+        def fake_urlopen(request):
+            raise urllib.error.URLError("offline")
+
+        monkeypatch.setattr(economic_calendar.urllib.request, "urlopen", fake_urlopen)
+
+        with pytest.raises(ValueError, match="Network error: offline"):
+            fetch_economic_calendar("2026-05-09", "2026-05-10", DUMMY_API_KEY)
+
+
+class TestMain:
+    def test_main_requires_api_key(self, monkeypatch, capsys):
+        monkeypatch.delenv("FMP_API_KEY", raising=False)
+        monkeypatch.setattr(sys, "argv", ["get_economic_calendar.py"])
+
+        with pytest.raises(SystemExit) as exc:
+            economic_calendar.main()
+
+        assert exc.value.code == 1
+        assert "FMP API key is required" in capsys.readouterr().err
+
+    def test_main_prints_json_to_stdout(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "get_economic_calendar.py",
+                "--from",
+                "2026-05-09",
+                "--to",
+                "2026-05-10",
+                "--api-key",
+                DUMMY_API_KEY,
+            ],
+        )
+        monkeypatch.setattr(economic_calendar, "fetch_economic_calendar", lambda *_: SAMPLE_EVENTS)
+
+        with pytest.raises(SystemExit) as exc:
+            economic_calendar.main()
+
+        assert exc.value.code == 0
+        assert json.loads(capsys.readouterr().out)[0]["event"] == "Consumer Price Index (CPI) YoY"
+
+    def test_main_writes_text_output_file(self, monkeypatch, tmp_path, capsys):
+        output_path = tmp_path / "calendar.txt"
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "get_economic_calendar.py",
+                "--from",
+                "2026-05-09",
+                "--to",
+                "2026-05-10",
+                "--api-key",
+                DUMMY_API_KEY,
+                "--format",
+                "text",
+                "--output",
+                str(output_path),
+            ],
+        )
+        monkeypatch.setattr(economic_calendar, "fetch_economic_calendar", lambda *_: SAMPLE_EVENTS)
+
+        with pytest.raises(SystemExit) as exc:
+            economic_calendar.main()
+
+        assert exc.value.code == 0
+        assert "Consumer Price Index" in output_path.read_text()
+        assert f"Output written to {output_path}" in capsys.readouterr().err
+
+    def test_main_reports_validation_or_fetch_errors(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "get_economic_calendar.py",
+                "--from",
+                "2026-05-10",
+                "--to",
+                "2026-05-09",
+                "--api-key",
+                DUMMY_API_KEY,
+            ],
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            economic_calendar.main()
+
+        assert exc.value.code == 1
+        assert "after end date" in capsys.readouterr().err
