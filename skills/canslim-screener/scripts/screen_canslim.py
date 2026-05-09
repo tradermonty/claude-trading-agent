@@ -19,8 +19,13 @@ import os
 import sys
 from datetime import datetime
 
-# Add calculators directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "calculators"))
+# Add scripts directory to path so the local ``calculators`` package resolves
+# consistently when this script is imported from the full test suite.
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, SCRIPTS_DIR)
+for module_name in list(sys.modules):
+    if module_name == "calculators" or module_name.startswith("calculators."):
+        del sys.modules[module_name]
 
 from calculators.earnings_calculator import calculate_quarterly_growth
 from calculators.growth_calculator import calculate_annual_growth

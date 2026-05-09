@@ -273,20 +273,29 @@ class TestSymbolMismatch:
 class TestCallerRegression:
     """Verify screen_canslim.py behavior when FMP endpoints fail."""
 
-    def test_canslim_exits_on_quote_failure(self):
+    def test_canslim_exits_on_quote_failure(self, tmp_path):
         """get_quote("^GSPC") → None causes sys.exit(1)."""
         with patch.dict(os.environ, {"FMP_API_KEY": "test_key"}):  # pragma: allowlist secret
             from fmp_client import FMPClient
 
             with patch.object(FMPClient, "get_quote", return_value=None):
-                with patch("sys.argv", ["screen_canslim.py", "--max-candidates", "1"]):
+                with patch(
+                    "sys.argv",
+                    [
+                        "screen_canslim.py",
+                        "--max-candidates",
+                        "1",
+                        "--output-dir",
+                        str(tmp_path),
+                    ],
+                ):
                     import screen_canslim
 
                     with pytest.raises(SystemExit) as exc_info:
                         screen_canslim.main()
                     assert exc_info.value.code == 1
 
-    def test_canslim_continues_on_historical_failure(self, capsys):
+    def test_canslim_continues_on_historical_failure(self, capsys, tmp_path):
         """get_historical_prices("^GSPC") → None prints EMA fallback warning and continues."""
         with patch.dict(os.environ, {"FMP_API_KEY": "test_key"}):  # pragma: allowlist secret
             from fmp_client import FMPClient
@@ -316,7 +325,16 @@ class TestCallerRegression:
                 patch.object(FMPClient, "get_profile", return_value=None),
                 patch.object(FMPClient, "get_institutional_holders", return_value=None),
                 patch(
-                    "sys.argv", ["screen_canslim.py", "--max-candidates", "1", "--universe", "AAPL"]
+                    "sys.argv",
+                    [
+                        "screen_canslim.py",
+                        "--max-candidates",
+                        "1",
+                        "--universe",
+                        "AAPL",
+                        "--output-dir",
+                        str(tmp_path),
+                    ],
                 ),
             ):
                 import screen_canslim

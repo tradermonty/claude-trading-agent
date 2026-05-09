@@ -10,16 +10,19 @@ Covers:
 """
 
 import os
+import sys
 import tempfile
 
 # Parent scripts directory (for screen_canslim.py path in file-reading tests)
 SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..")
+CALCULATORS_DIR = os.path.join(SCRIPTS_DIR, "calculators")
+sys.path.insert(0, CALCULATORS_DIR)
 
-from calculators.institutional_calculator import (
+from institutional_calculator import (
     calculate_institutional_sponsorship,
     score_institutional_sponsorship,
 )
-from calculators.market_calculator import calculate_ema, calculate_market_direction
+from market_calculator import calculate_ema, calculate_market_direction
 from report_generator import generate_markdown_report
 
 # ---------------------------------------------------------------------------
