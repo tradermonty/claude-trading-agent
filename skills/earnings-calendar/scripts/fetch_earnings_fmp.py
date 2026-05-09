@@ -7,7 +7,7 @@ filters by market cap (>$2B), and outputs structured JSON data.
 
 Usage:
     # With environment variable
-    export FMP_API_KEY="your-key"
+    export FMP_API_KEY="your-key"  # pragma: allowlist secret
     python fetch_earnings_fmp.py 2025-11-03 2025-11-09
 
     # With API key as argument
@@ -322,7 +322,10 @@ def get_api_key() -> str | None:
     print("❌ ERROR: No API key found", file=sys.stderr)
     print("", file=sys.stderr)
     print("Options:", file=sys.stderr)
-    print("1. Set environment variable: export FMP_API_KEY='your-key'", file=sys.stderr)
+    print(
+        "1. Set environment variable: export FMP_API_KEY='your-key'",  # pragma: allowlist secret
+        file=sys.stderr,
+    )
     print("2. Pass as argument: python fetch_earnings_fmp.py START END YOUR_KEY", file=sys.stderr)
     print(
         "3. Get free API key: https://site.financialmodelingprep.com/developer/docs",
@@ -359,10 +362,13 @@ def print_usage():
     print("  API_KEY     (Optional) FMP API key (or use FMP_API_KEY env var)", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
-    print("  export FMP_API_KEY='your-key'", file=sys.stderr)
+    print("  export FMP_API_KEY='your-key'", file=sys.stderr)  # pragma: allowlist secret
     print("  python fetch_earnings_fmp.py 2025-11-03 2025-11-09", file=sys.stderr)
     print("", file=sys.stderr)
-    print("  python fetch_earnings_fmp.py 2025-11-03 2025-11-09 your-key", file=sys.stderr)
+    print(  # pragma: allowlist secret
+        "  python fetch_earnings_fmp.py 2025-11-03 2025-11-09 your-key",
+        file=sys.stderr,
+    )
     print("", file=sys.stderr)
     print("Output:", file=sys.stderr)
     print("  JSON data is written to stdout", file=sys.stderr)

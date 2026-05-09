@@ -480,7 +480,7 @@ class TestSelectStocks:
 
     def test_etf_holdings_supplement(self):
         """FINVIZ returns few stocks => ETF holdings supplement."""
-        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")  # pragma: allowlist secret
 
         def empty_finviz(industry, limit, is_bearish):
             return []
@@ -764,7 +764,7 @@ class TestCircuitBreaker:
     def test_consecutive_failures_disables_elite_only(self):
         """Elite 3 consecutive failures => Elite disabled, Public still active."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
         )
         for _ in range(_MAX_CONSECUTIVE_FAILURES):
@@ -775,8 +775,8 @@ class TestCircuitBreaker:
     def test_mixed_source_failures_independent(self):
         """Elite fail -> Public success -> FMP fail: independent counters."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
-            fmp_api_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
+            fmp_api_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
         )
         sel._record_failure("elite")
@@ -790,7 +790,7 @@ class TestCircuitBreaker:
     def test_success_resets_own_source_count(self):
         """Success resets only that source's consecutive counter."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
         )
         sel._record_failure("elite")
@@ -804,8 +804,8 @@ class TestCircuitBreaker:
     def test_status_degraded_when_one_active_source_disabled(self):
         """One active source disabled => status='degraded'."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
-            fmp_api_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
+            fmp_api_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
         )
         for _ in range(_MAX_CONSECUTIVE_FAILURES):
@@ -815,8 +815,8 @@ class TestCircuitBreaker:
     def test_status_circuit_broken_when_all_active_disabled(self):
         """All active sources disabled => status='circuit_broken'."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
-            fmp_api_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
+            fmp_api_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
         )
         for source in ["elite", "public", "fmp"]:
@@ -827,7 +827,7 @@ class TestCircuitBreaker:
     def test_status_active_ignores_elite_when_mode_public(self):
         """finviz_mode=public => elite not in active sources."""
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
             finviz_mode="public",
         )
         for _ in range(_MAX_CONSECUTIVE_FAILURES):
@@ -1088,14 +1088,16 @@ class TestProperties:
         assert sel._active_sources == ["public"]
 
     def test_active_sources_public_mode_with_fmp(self):
-        sel = RepresentativeStockSelector(finviz_mode="public", fmp_api_key="key")
+        sel = RepresentativeStockSelector(
+            finviz_mode="public", fmp_api_key="key"
+        )  # pragma: allowlist secret
         assert sel._active_sources == ["public", "fmp"]
 
     def test_active_sources_elite_mode(self):
         sel = RepresentativeStockSelector(
-            finviz_elite_key="key",
+            finviz_elite_key="key",  # pragma: allowlist secret
             finviz_mode="elite",
-            fmp_api_key="key",
+            fmp_api_key="key",  # pragma: allowlist secret
         )
         assert sel._active_sources == ["elite", "public", "fmp"]
 
