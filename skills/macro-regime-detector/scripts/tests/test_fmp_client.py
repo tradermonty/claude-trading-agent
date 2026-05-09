@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
 from unittest.mock import MagicMock
 
-import fmp_client
 import pytest
-from fmp_client import FMPClient
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "fmp_client.py"
+SPEC = importlib.util.spec_from_file_location("macro_fmp_client", MODULE_PATH)
+assert SPEC is not None
+macro_fmp_client = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(macro_fmp_client)
+FMPClient = macro_fmp_client.FMPClient
 
 DUMMY_API_KEY = "dummy-key"  # pragma: allowlist secret
 ENV_DUMMY_API_KEY = "env-dummy-key"  # pragma: allowlist secret
@@ -15,7 +23,7 @@ def mock_session(monkeypatch):
     session = MagicMock()
     session.headers = {}
     session_cls = MagicMock(return_value=session)
-    monkeypatch.setattr(fmp_client.requests, "Session", session_cls)
+    monkeypatch.setattr(macro_fmp_client.requests, "Session", session_cls)
     return session
 
 
@@ -51,43 +59,47 @@ class TestFMPClientInit:
 
 class TestRateLimitedGet:
     def test_success_returns_json_and_tracks_api_call(self, monkeypatch, mock_session):
-        monkeypatch.setattr(fmp_client.time, "time", MagicMock(side_effect=[100.0, 100.1]))
-        mock_session.get.return_value = _response(200, payload=[{"symbol": "AAPL"}])
+        monkeypatch.setattr(macro_fmp_client.time, "time", MagicMock(side_effect=[100.0, 100.1]))
+        mock_session.get.return_value = _response(200, payload={"historical": []})
         client = FMPClient(api_key=DUMMY_API_KEY)
 
-        result = client._rate_limited_get("https://example.test/quote", {"symbol": "AAPL"})
+        result = client._rate_limited_get("https://example.test/history", {"timeseries": 10})
 
-        assert result == [{"symbol": "AAPL"}]
+        assert result == {"historical": []}
         assert client.api_calls_made == 1
         assert client.retry_count == 0
         mock_session.get.assert_called_once_with(
-            "https://example.test/quote",
-            params={"symbol": "AAPL"},
+            "https://example.test/history",
+            params={"timeseries": 10},
             timeout=30,
         )
 
     def test_rate_limit_retry_then_success(self, monkeypatch, mock_session):
         monkeypatch.setattr(
-            fmp_client.time, "time", MagicMock(side_effect=[100.0, 100.1, 200.0, 200.1])
+            macro_fmp_client.time,
+            "time",
+            MagicMock(side_effect=[100.0, 100.1, 200.0, 200.1]),
         )
         sleep = MagicMock()
-        monkeypatch.setattr(fmp_client.time, "sleep", sleep)
+        monkeypatch.setattr(macro_fmp_client.time, "sleep", sleep)
         mock_session.get.side_effect = [
             _response(429, text="too many requests"),
-            _response(200, payload={"ok": True}),
+            _response(200, payload=[{"date": "2026-05-09"}]),
         ]
         client = FMPClient(api_key=DUMMY_API_KEY)
 
-        assert client._rate_limited_get("https://example.test/data") == {"ok": True}
+        assert client._rate_limited_get("https://example.test/data") == [{"date": "2026-05-09"}]
         assert client.api_calls_made == 2
         assert client.retry_count == 0
         sleep.assert_called_once_with(60)
 
     def test_rate_limit_failure_stops_future_requests(self, monkeypatch, mock_session):
         monkeypatch.setattr(
-            fmp_client.time, "time", MagicMock(side_effect=[100.0, 100.1, 200.0, 200.1])
+            macro_fmp_client.time,
+            "time",
+            MagicMock(side_effect=[100.0, 100.1, 200.0, 200.1]),
         )
-        monkeypatch.setattr(fmp_client.time, "sleep", MagicMock())
+        monkeypatch.setattr(macro_fmp_client.time, "sleep", MagicMock())
         mock_session.get.side_effect = [
             _response(429, text="too many requests"),
             _response(429, text="too many requests"),
@@ -100,65 +112,30 @@ class TestRateLimitedGet:
         assert mock_session.get.call_count == 2
 
     def test_non_200_non_429_returns_none(self, mock_session):
-        mock_session.get.return_value = _response(500, text="server failed")
+        mock_session.get.return_value = _response(503, text="unavailable")
         client = FMPClient(api_key=DUMMY_API_KEY)
 
         assert client._rate_limited_get("https://example.test/data") is None
 
     def test_request_exception_returns_none(self, mock_session):
-        mock_session.get.side_effect = fmp_client.requests.exceptions.RequestException("boom")
+        mock_session.get.side_effect = macro_fmp_client.requests.exceptions.RequestException("boom")
         client = FMPClient(api_key=DUMMY_API_KEY)
 
         assert client._rate_limited_get("https://example.test/data") is None
 
 
 class TestEndpointHelpers:
-    def test_sp500_constituents_are_cached(self, monkeypatch, mock_session):
+    def test_historical_prices_are_cached(self, monkeypatch, mock_session):
         client = FMPClient(api_key=DUMMY_API_KEY)
-        get = MagicMock(return_value=[{"symbol": "AAPL"}])
+        get = MagicMock(return_value={"historical": [{"close": 100}]})
         monkeypatch.setattr(client, "_rate_limited_get", get)
 
-        assert client.get_sp500_constituents() == [{"symbol": "AAPL"}]
-        assert client.get_sp500_constituents() == [{"symbol": "AAPL"}]
-        get.assert_called_once_with(f"{client.BASE_URL}/sp500_constituent")
-
-    def test_quote_and_historical_are_cached(self, monkeypatch, mock_session):
-        client = FMPClient(api_key=DUMMY_API_KEY)
-        get = MagicMock(
-            side_effect=[
-                [{"symbol": "AAPL", "price": 100}],
-                {"historical": [{"close": 99}]},
-            ]
+        assert client.get_historical_prices("SPY", days=20) == {"historical": [{"close": 100}]}
+        assert client.get_historical_prices("SPY", days=20) == {"historical": [{"close": 100}]}
+        get.assert_called_once_with(
+            f"{client.BASE_URL}/historical-price-full/SPY",
+            {"timeseries": 20},
         )
-        monkeypatch.setattr(client, "_rate_limited_get", get)
-
-        assert client.get_quote("AAPL") == [{"symbol": "AAPL", "price": 100}]
-        assert client.get_quote("AAPL") == [{"symbol": "AAPL", "price": 100}]
-        assert client.get_historical_prices("AAPL", days=10) == {"historical": [{"close": 99}]}
-        assert client.get_historical_prices("AAPL", days=10) == {"historical": [{"close": 99}]}
-        assert get.call_count == 2
-
-    def test_batch_quotes_maps_symbol_to_quote(self, monkeypatch, mock_session):
-        client = FMPClient(api_key=DUMMY_API_KEY)
-        get_quote = MagicMock(
-            side_effect=[
-                [
-                    {"symbol": "AAPL"},
-                    {"symbol": "MSFT"},
-                    {"symbol": "NVDA"},
-                    {"symbol": "META"},
-                    {"symbol": "GOOGL"},
-                ],
-                [{"symbol": "TSLA"}],
-            ]
-        )
-        monkeypatch.setattr(client, "get_quote", get_quote)
-
-        result = client.get_batch_quotes(["AAPL", "MSFT", "NVDA", "META", "GOOGL", "TSLA"])
-
-        assert list(result) == ["AAPL", "MSFT", "NVDA", "META", "GOOGL", "TSLA"]
-        assert get_quote.call_args_list[0].args == ("AAPL,MSFT,NVDA,META,GOOGL",)
-        assert get_quote.call_args_list[1].args == ("TSLA",)
 
     def test_batch_historical_skips_empty_payloads(self, monkeypatch, mock_session):
         client = FMPClient(api_key=DUMMY_API_KEY)
@@ -171,24 +148,38 @@ class TestEndpointHelpers:
         )
         monkeypatch.setattr(client, "get_historical_prices", get_prices)
 
-        result = client.get_batch_historical(["AAPL", "MSFT", "TSLA"], days=20)
+        result = client.get_batch_historical(["SPY", "TLT", "HYG"], days=30)
 
-        assert result == {"AAPL": [{"close": 100}]}
+        assert result == {"SPY": [{"close": 100}]}
+        assert get_prices.call_args_list[0].kwargs == {"days": 30}
 
-    def test_calculate_sma_uses_available_prices_when_shorter_than_period(self, mock_session):
+    def test_treasury_rates_cache_only_valid_lists(self, monkeypatch, mock_session):
         client = FMPClient(api_key=DUMMY_API_KEY)
+        get = MagicMock(
+            side_effect=[
+                {"not": "a-list"},
+                [{"date": "2026-05-09", "year10": 4.2}],
+            ]
+        )
+        monkeypatch.setattr(client, "_rate_limited_get", get)
 
-        assert client.calculate_sma([10, 20], period=5) == 15
-        assert client.calculate_sma([10, 20, 30], period=2) == 15
+        assert client.get_treasury_rates(days=5) is None
+        assert client.get_treasury_rates(days=5) == [{"date": "2026-05-09", "year10": 4.2}]
+        assert client.get_treasury_rates(days=5) == [{"date": "2026-05-09", "year10": 4.2}]
+        assert get.call_count == 2
+        assert get.call_args_list[0].args == (
+            f"{client.STABLE_URL}/treasury-rates",
+            {"limit": 5},
+        )
 
     def test_api_stats(self, mock_session):
         client = FMPClient(api_key=DUMMY_API_KEY)
-        client.cache["quote_AAPL"] = [{"symbol": "AAPL"}]
-        client.api_calls_made = 3
+        client.cache["treasury_5"] = [{"date": "2026-05-09"}]
+        client.api_calls_made = 4
         client.rate_limit_reached = True
 
         assert client.get_api_stats() == {
             "cache_entries": 1,
-            "api_calls_made": 3,
+            "api_calls_made": 4,
             "rate_limit_reached": True,
         }
