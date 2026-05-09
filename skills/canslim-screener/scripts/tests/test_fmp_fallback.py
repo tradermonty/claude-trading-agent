@@ -347,3 +347,151 @@ class TestCallerRegression:
 
             captured = capsys.readouterr()
             assert "EMA fallback" in captured.out or "historical data unavailable" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Direct client helpers and endpoint wrappers
+# ---------------------------------------------------------------------------
+
+
+class TestRateLimitedGet:
+    def test_init_requires_api_key(self, monkeypatch):
+        from fmp_client import FMPClient
+
+        monkeypatch.delenv("FMP" + "_API_KEY", raising=False)
+
+        with pytest.raises(ValueError):
+            FMPClient()
+
+    def test_rate_limited_get_success_resets_retry_count(self):
+        client = _make_client()
+        client.retry_count = 1
+        client.session.get = MagicMock(return_value=_mock_response(200, {"ok": True}))
+
+        assert client._rate_limited_get("https://example.test") == {"ok": True}
+        assert client.retry_count == 0
+
+    def test_rate_limited_get_retries_429_then_succeeds(self):
+        client = _make_client()
+        rate_limited = _mock_response(429, None, "too many")
+        ok = _mock_response(200, {"ok": True})
+        client.session.get = MagicMock(side_effect=[rate_limited, ok])
+
+        with patch("fmp_client.time.sleep") as sleep:
+            assert client._rate_limited_get("https://example.test") == {"ok": True}
+
+        sleep.assert_any_call(60)
+        assert client.session.get.call_count == 2
+
+    def test_rate_limited_get_sets_circuit_on_repeated_429(self, capsys):
+        client = _make_client()
+        client.max_retries = 0
+        client.session.get = MagicMock(return_value=_mock_response(429, None, "too many"))
+
+        assert client._rate_limited_get("https://example.test") is None
+        assert client.rate_limit_reached is True
+        assert "Daily API rate limit reached" in capsys.readouterr().err
+        assert client._rate_limited_get("https://example.test") is None
+        assert client.session.get.call_count == 1
+
+    def test_rate_limited_get_non_200_respects_quiet_flag(self, capsys):
+        client = _make_client()
+        client.session.get = MagicMock(return_value=_mock_response(500, None, "server error"))
+
+        assert client._rate_limited_get("https://example.test", quiet=True) is None
+        assert capsys.readouterr().err == ""
+
+        assert client._rate_limited_get("https://example.test", quiet=False) is None
+        assert "API request failed: 500" in capsys.readouterr().err
+
+    def test_rate_limited_get_request_exception(self, capsys):
+        import requests
+
+        client = _make_client()
+        client.session.get = MagicMock(side_effect=requests.exceptions.Timeout("slow"))
+
+        assert client._rate_limited_get("https://example.test") is None
+        assert "Request exception" in capsys.readouterr().err
+
+
+class TestDirectEndpointWrappers:
+    def test_income_statement_profile_and_holders_cache_successes(self):
+        client = _make_client()
+        client._rate_limited_get = MagicMock(
+            side_effect=[
+                [{"date": "2026-01-01"}],
+                [{"symbol": "AAPL"}],
+                [{"holder": "Fund"}],
+            ]
+        )
+
+        assert client.get_income_statement("AAPL") == [{"date": "2026-01-01"}]
+        assert client.get_income_statement("AAPL") == [{"date": "2026-01-01"}]
+        assert client.get_profile("AAPL") == [{"symbol": "AAPL"}]
+        assert client.get_profile("AAPL") == [{"symbol": "AAPL"}]
+        assert client.get_institutional_holders("AAPL") == [{"holder": "Fund"}]
+        assert client.get_institutional_holders("AAPL") == [{"holder": "Fund"}]
+        assert client._rate_limited_get.call_count == 3
+
+    def test_failed_direct_endpoint_results_are_not_cached(self):
+        client = _make_client()
+        client._rate_limited_get = MagicMock(return_value=None)
+
+        assert client.get_income_statement("AAPL") is None
+        assert client.get_income_statement("AAPL") is None
+        assert client.get_profile("AAPL") is None
+        assert client.get_profile("AAPL") is None
+        assert client.get_institutional_holders("AAPL") is None
+        assert client.get_institutional_holders("AAPL") is None
+        assert client._rate_limited_get.call_count == 6
+
+    def test_quote_and_historical_cache_successes(self):
+        client = _make_client()
+        client._request_with_fallback = MagicMock(
+            side_effect=[
+                [{"symbol": "AAPL"}],
+                {"symbol": "AAPL", "historical": [{"close": 100}]},
+            ]
+        )
+
+        assert client.get_quote("AAPL") == [{"symbol": "AAPL"}]
+        assert client.get_quote("AAPL") == [{"symbol": "AAPL"}]
+        assert client.get_historical_prices("AAPL", days=80) == {
+            "symbol": "AAPL",
+            "historical": [{"close": 100}],
+        }
+        assert client.get_historical_prices("AAPL", days=80) == {
+            "symbol": "AAPL",
+            "historical": [{"close": 100}],
+        }
+        assert client._request_with_fallback.call_count == 2
+
+
+class TestMathAndStatsHelpers:
+    def test_calculate_ema_uses_simple_average_when_short(self):
+        client = _make_client()
+
+        assert client.calculate_ema([10.0, 20.0], period=5) == 15.0
+
+    def test_calculate_ema_for_full_series(self):
+        client = _make_client()
+        prices = [float(i) for i in range(10, 0, -1)]
+
+        assert round(client.calculate_ema(prices, period=3), 2) == 9.0
+
+    def test_clear_cache_and_stats(self, capsys):
+        client = _make_client()
+        client.cache["x"] = {"ok": True}
+        client.rate_limit_reached = True
+        client.retry_count = 2
+
+        assert client.get_api_stats() == {
+            "cache_entries": 1,
+            "rate_limit_reached": True,
+            "retry_count": 2,
+        }
+
+        client.clear_cache()
+
+        assert client.cache == {}
+        assert "Cache cleared" in capsys.readouterr().err
