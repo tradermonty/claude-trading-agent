@@ -28,7 +28,6 @@ from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / ".env")
 
-from anthropic import Anthropic
 
 from agent.client import ManagedAgentClient
 from agent.sanitizer import sanitize

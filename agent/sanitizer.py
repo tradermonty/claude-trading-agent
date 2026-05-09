@@ -44,7 +44,7 @@ def _redact_abs_path(match: re.Match[str]) -> str:
     path = match.group(0)
     project_root = os.getcwd()
     if path.startswith(project_root + "/"):
-        return path[len(project_root) + 1:]
+        return path[len(project_root) + 1 :]
     if path.startswith(_HOME):
-        return "~" + path[len(_HOME):]
+        return "~" + path[len(_HOME) :]
     return "[redacted-path]"
