@@ -19,7 +19,6 @@ Pass threshold: >= 85 (must meet at least 6 of 7 criteria)
 """
 
 
-
 def calculate_trend_template(
     historical_prices: list[dict],
     quote_data: dict,

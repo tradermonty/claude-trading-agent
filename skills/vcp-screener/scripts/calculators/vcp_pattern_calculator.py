@@ -17,7 +17,6 @@ VCP Characteristics:
 """
 
 
-
 def calculate_vcp_pattern(
     historical_prices: list[dict],
     lookback_days: int = 120,

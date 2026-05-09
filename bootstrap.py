@@ -210,8 +210,7 @@ def register_all_skills(
                 results[env_key] = existing_id
 
     if failures:
-        print(f"\nERROR: {len(failures)} skill(s) failed to register: "
-              f"{', '.join(failures)}")
+        print(f"\nERROR: {len(failures)} skill(s) failed to register: {', '.join(failures)}")
         sys.exit(1)
 
     return results, new_skill_ids, replacements
@@ -254,31 +253,37 @@ def attach_new_skills_to_agent(
             # Stale: drop it; the replacement is added below.
             continue
         seen.add(sid)
-        merged_skills.append({
-            "type": "custom",
-            "skill_id": sid,
-            "version": "latest",
-        })
+        merged_skills.append(
+            {
+                "type": "custom",
+                "skill_id": sid,
+                "version": "latest",
+            }
+        )
 
     # Append Path B additions.
     for sid in new_skill_ids:
         if sid and sid not in seen:
             seen.add(sid)
-            merged_skills.append({
-                "type": "custom",
-                "skill_id": sid,
-                "version": "latest",
-            })
+            merged_skills.append(
+                {
+                    "type": "custom",
+                    "skill_id": sid,
+                    "version": "latest",
+                }
+            )
 
     # Append Path C replacement targets.
     for new_sid in replacements.values():
         if new_sid and new_sid not in seen:
             seen.add(new_sid)
-            merged_skills.append({
-                "type": "custom",
-                "skill_id": new_sid,
-                "version": "latest",
-            })
+            merged_skills.append(
+                {
+                    "type": "custom",
+                    "skill_id": new_sid,
+                    "version": "latest",
+                }
+            )
 
     client.beta.agents.update(
         agent_id,
@@ -300,10 +305,7 @@ def create_agent(client, skill_ids: list[str]) -> str:
     from config.settings import AGENT_NAME, AGENT_SYSTEM_PROMPT, DEFAULT_MODEL
 
     system = _build_system_prompt(AGENT_SYSTEM_PROMPT)
-    skills = [
-        {"type": "custom", "skill_id": sid, "version": "latest"}
-        for sid in skill_ids
-    ]
+    skills = [{"type": "custom", "skill_id": sid, "version": "latest"} for sid in skill_ids]
 
     agent = client.beta.agents.create(
         name=AGENT_NAME,
@@ -332,15 +334,17 @@ def create_environment(client) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Trade Assistant Setup")
     parser.add_argument(
-        "--force", action="store_true",
+        "--force",
+        action="store_true",
         help="Re-create all resources even if IDs already exist in .env "
-             "(rotates skill_ids, agent_id, environment_id; orphans old resources)",
+        "(rotates skill_ids, agent_id, environment_id; orphans old resources)",
     )
     parser.add_argument(
-        "--skills-only", action="store_true",
+        "--skills-only",
+        action="store_true",
         help="Update only skill files, preserving agent/environment IDs. "
-             "Existing skills get a new version (skill_ids preserved); "
-             "missing skills are created and attached via agents.update.",
+        "Existing skills get a new version (skill_ids preserved); "
+        "missing skills are created and attached via agents.update.",
     )
     args = parser.parse_args()
 
@@ -350,6 +354,7 @@ def main() -> None:
 
     # Load .env first for ANTHROPIC_API_KEY
     from dotenv import load_dotenv
+
     load_dotenv(ENV_FILE, override=True)
 
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
@@ -363,12 +368,15 @@ def main() -> None:
         agent_id_check = read_env_value("MANAGED_AGENT_ID")
         env_id_check = read_env_value("MANAGED_ENVIRONMENT_ID")
         if not agent_id_check or not env_id_check:
-            print("ERROR: --skills-only requires MANAGED_AGENT_ID and "
-                  "MANAGED_ENVIRONMENT_ID to be set in .env")
+            print(
+                "ERROR: --skills-only requires MANAGED_AGENT_ID and "
+                "MANAGED_ENVIRONMENT_ID to be set in .env"
+            )
             print("  Run `python bootstrap.py` (without --skills-only) first")
             sys.exit(1)
 
     from anthropic import Anthropic
+
     client = Anthropic()
 
     print("=" * 50)
@@ -382,7 +390,9 @@ def main() -> None:
     # Step 1: Register skills
     print("\n[1/3] Registering skills...")
     skill_env_map, new_skill_ids, replacements = register_all_skills(
-        client, force=args.force, skills_only=args.skills_only,
+        client,
+        force=args.force,
+        skills_only=args.skills_only,
     )
     skill_ids = list(skill_env_map.values())
     print(f"  Total: {len(skill_ids)}/{len(SKILL_ENV_KEYS)} skills")
@@ -399,7 +409,10 @@ def main() -> None:
                 actions.append(f"{len(replacements)} replacement(s)")
             print(f"\n[2/3] Updating agent ({', '.join(actions)})...")
             attach_new_skills_to_agent(
-                client, agent_id, new_skill_ids, replacements=replacements,
+                client,
+                agent_id,
+                new_skill_ids,
+                replacements=replacements,
             )
         else:
             print(f"\n[2/3] Agent preserved: {agent_id[:20]}... (no skill changes)")
@@ -412,7 +425,10 @@ def main() -> None:
         if new_skill_ids or replacements:
             print(f"\n[2/3] Agent exists ({existing_agent[:20]}...); attaching new skills...")
             attach_new_skills_to_agent(
-                client, agent_id, new_skill_ids, replacements=replacements,
+                client,
+                agent_id,
+                new_skill_ids,
+                replacements=replacements,
             )
         else:
             print(f"\n[2/3] Agent already exists: {existing_agent[:20]}...")

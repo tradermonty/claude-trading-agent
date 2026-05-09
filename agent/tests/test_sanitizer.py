@@ -13,10 +13,13 @@ def _reload_sanitizer():
 
     import agent.sanitizer
 
-    with mock.patch.dict(os.environ, {
-        "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",  # pragma: allowlist secret
-        "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",  # pragma: allowlist secret
-    }):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",  # pragma: allowlist secret
+            "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",  # pragma: allowlist secret
+        },
+    ):
         importlib.reload(agent.sanitizer)
         yield
     importlib.reload(agent.sanitizer)

@@ -63,6 +63,7 @@ class TestValidateRuntimeEnvironment:
             import importlib
 
             import config.settings
+
             importlib.reload(config.settings)
             errors = config.settings.validate_runtime_environment()
             assert len(errors) > 0

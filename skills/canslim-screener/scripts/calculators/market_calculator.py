@@ -17,7 +17,6 @@ Scoring:
 """
 
 
-
 def calculate_market_direction(
     sp500_quote: dict, sp500_prices: list[dict] | None = None, vix_quote: dict | None = None
 ) -> dict:

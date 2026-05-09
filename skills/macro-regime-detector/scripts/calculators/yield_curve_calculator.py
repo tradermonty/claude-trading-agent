@@ -21,7 +21,6 @@ Scoring (0-100 = Transition Signal Strength):
   80-100: Strong confirmed transition
 """
 
-
 from .utils import (
     calculate_ratio,
     compute_percentile,

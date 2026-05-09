@@ -20,6 +20,7 @@ _load_dotenv_if_enabled()
 
 # --- Helper parsers ---
 
+
 def _parse_positive_int(raw: str, *, default: int, minimum: int = 1) -> int:
     try:
         value = int(raw.strip())
@@ -141,7 +142,9 @@ MARKET_BREADTH_ANALYZER_SKILL_ID = os.getenv("MARKET_BREADTH_ANALYZER_SKILL_ID",
 EARNINGS_CALENDAR_SKILL_ID = os.getenv("EARNINGS_CALENDAR_SKILL_ID", "").strip()
 ECONOMIC_CALENDAR_SKILL_ID = os.getenv("ECONOMIC_CALENDAR_SKILL_ID", "").strip()
 BREAKOUT_TRADE_PLANNER_SKILL_ID = os.getenv("BREAKOUT_TRADE_PLANNER_SKILL_ID", "").strip()
-IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID = os.getenv("IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID", "").strip()
+IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID = os.getenv(
+    "IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID", ""
+).strip()
 
 # --- External API Keys (injected into agent sessions) ---
 FMP_API_KEY = os.getenv("FMP_API_KEY", "").strip()

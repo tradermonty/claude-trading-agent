@@ -18,7 +18,6 @@ Transition signals:
 - SPY/TLT ratio crossover + correlation regime change = high confidence
 """
 
-
 from .utils import (
     calculate_ratio,
     compute_percentile,

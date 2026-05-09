@@ -15,7 +15,6 @@ Pattern Types (priority order, first match wins):
 """
 
 
-
 def classify_pattern(
     valid_vcp: bool,
     num_contractions: int,

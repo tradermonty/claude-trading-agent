@@ -17,7 +17,6 @@ Scoring (100 = healthy):
 """
 
 
-
 def calculate_historical_percentile(
     rows: list[dict],
     summary: dict[str, str],

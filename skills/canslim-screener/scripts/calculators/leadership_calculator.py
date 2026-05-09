@@ -31,7 +31,6 @@ Scoring:
 """
 
 
-
 def calculate_leadership(
     historical_prices: list[dict],
     sp500_historical: list[dict] | None = None,

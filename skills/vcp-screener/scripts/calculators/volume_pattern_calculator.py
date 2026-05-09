@@ -28,7 +28,6 @@ The breakout quality is tracked separately via breakout_volume_score.
 """
 
 
-
 def calculate_volume_pattern(
     historical_prices: list[dict],
     pivot_price: float | None = None,

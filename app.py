@@ -309,6 +309,7 @@ def render_app() -> None:
         st.caption(_msg("sidebar_auth", auth=get_auth_description()))
 
         from config.settings import DEFAULT_MODEL
+
         st.caption(_msg("sidebar_model", model=DEFAULT_MODEL))
 
         if client.agent_id:
@@ -319,6 +320,7 @@ def render_app() -> None:
         st.divider()
         st.caption("**Skills:**")
         from skills.registry import ALL_SKILLS as _all_skills
+
         for _sk in _all_skills:
             st.caption(f"`{_sk.command}` - {_sk.name}")
 
@@ -347,9 +349,11 @@ def render_app() -> None:
             )
 
     # Show sample prompts when chat is empty and no pending prompt
-    if (not st.session_state.messages
-            and not runtime_errors
-            and not st.session_state.get("_pending_prompt")):
+    if (
+        not st.session_state.messages
+        and not runtime_errors
+        and not st.session_state.get("_pending_prompt")
+    ):
         _sample_prompts = [
             (
                 "Market Health Check",
@@ -432,9 +436,7 @@ def render_app() -> None:
         response_placeholder = st.empty()
 
         if matched_skill:
-            status_placeholder.status(
-                _msg("running_tool", label=matched_skill), state="running"
-            )
+            status_placeholder.status(_msg("running_tool", label=matched_skill), state="running")
         else:
             status_placeholder.status(_msg("thinking"), state="running")
 
@@ -454,11 +456,13 @@ def render_app() -> None:
 
         response_placeholder.markdown(response_text)
 
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": response_text,
-        "files": created_files,
-    })
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": response_text,
+            "files": created_files,
+        }
+    )
     st.rerun()
 
 

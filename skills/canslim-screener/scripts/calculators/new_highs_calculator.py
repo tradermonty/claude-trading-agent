@@ -17,7 +17,6 @@ Scoring:
 """
 
 
-
 def calculate_newness(quote: dict, historical_prices: dict | None = None) -> dict:
     """
     Calculate N component score based on price position and momentum

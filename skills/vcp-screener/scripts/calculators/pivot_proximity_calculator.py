@@ -24,7 +24,6 @@ Also calculates:
 """
 
 
-
 def calculate_pivot_proximity(
     current_price: float,
     pivot_price: float | None,

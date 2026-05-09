@@ -99,9 +99,7 @@ class TestUserMessageContent:
         # block the agent sees, matching the Phase 2 A/B eval structure.
         client, mock_sdk = patched_client
 
-        _drain(client.send_message_streaming(
-            "Use the vcp-screener skill for this request: AAPL"
-        ))
+        _drain(client.send_message_streaming("Use the vcp-screener skill for this request: AAPL"))
 
         events = _events_send_args(mock_sdk)["events"]
         assert events[0]["type"] == "user.message"

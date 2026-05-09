@@ -137,6 +137,7 @@ class ManagedAgentClient:
         session_id = self.ensure_session()
 
         from datetime import datetime
+
         now = datetime.now().astimezone()
         date_ctx = now.strftime("[Current: %Y-%m-%d (%a) %H:%M %Z]")
         content_blocks = [
@@ -191,6 +192,7 @@ class ManagedAgentClient:
                         import os
 
                         from agent.sanitizer import sanitize as _sanitize_content
+
                         yield {
                             "type": "file_created",
                             "file_name": os.path.basename(file_path),
@@ -245,9 +247,11 @@ def _build_skills_list() -> list[dict[str, str]]:
         IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID,
     ]:
         if skill_id:
-            skills.append({
-                "type": "custom",
-                "skill_id": skill_id,
-                "version": "latest",
-            })
+            skills.append(
+                {
+                    "type": "custom",
+                    "skill_id": skill_id,
+                    "version": "latest",
+                }
+            )
     return skills

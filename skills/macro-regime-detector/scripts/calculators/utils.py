@@ -7,7 +7,6 @@ crossover detection, momentum computation, and transition scoring.
 """
 
 
-
 def downsample_to_monthly(daily_history: list[dict]) -> list[dict]:
     """
     Downsample daily OHLCV to monthly (last business day of each month).

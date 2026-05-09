@@ -25,7 +25,6 @@ Scoring (100 = healthy):
 """
 
 
-
 def calculate_cycle_position(rows: list[dict]) -> dict:
     """
     Calculate peak/trough cycle position score.

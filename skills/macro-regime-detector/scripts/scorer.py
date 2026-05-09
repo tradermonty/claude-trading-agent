@@ -24,7 +24,6 @@ Total: 100%
 - Transitional: 3+ components signaling, unclear pattern
 """
 
-
 COMPONENT_WEIGHTS = {
     "concentration": 0.25,
     "yield_curve": 0.20,

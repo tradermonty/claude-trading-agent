@@ -41,7 +41,7 @@ def extract_response(path: Path) -> str:
     marker = "## Response\n"
     idx = text.find(marker)
     if idx >= 0:
-        return text[idx + len(marker):].strip()
+        return text[idx + len(marker) :].strip()
     return text
 
 
@@ -84,7 +84,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("eval_dir", help="Path to reports/eval/<skill>/<timestamp>/")
     parser.add_argument(
-        "--force", action="store_true",
+        "--force",
+        action="store_true",
         help="Overwrite scoring.csv even if it contains existing scores",
     )
     args = parser.parse_args()
@@ -153,8 +154,8 @@ Pass criterion: per-axis `B/A` mean ratio `>= 0.90`.
     prompt_indices = sorted({p for p, _ in common})
 
     for p in prompt_indices:
-        out_lines.append(f"\n# Prompt #{p+1}: `{prompt_by_idx.get(p, '?')}`\n")
-        for (pp, t) in [(pp, t) for pp, t in common if pp == p]:
+        out_lines.append(f"\n# Prompt #{p + 1}: `{prompt_by_idx.get(p, '?')}`\n")
+        for pp, t in [(pp, t) for pp, t in common if pp == p]:
             a_resp = extract_response(a_path[(pp, t)])
             b_resp = extract_response(b_path[(pp, t)])
             out_lines.append(f"\n## Pair p{pp:02d}_t{t}\n")
@@ -180,21 +181,27 @@ Pass criterion: per-axis `B/A` mean ratio `>= 0.90`.
     else:
         with csv_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "pair", "prompt", "arm",
-                "score_completeness", "component_coverage", "actionable_takeaway",
-                "total", "note",
-            ])
-            for (p, t) in common:
+            writer.writerow(
+                [
+                    "pair",
+                    "prompt",
+                    "arm",
+                    "score_completeness",
+                    "component_coverage",
+                    "actionable_takeaway",
+                    "total",
+                    "note",
+                ]
+            )
+            for p, t in common:
                 label = f"p{p:02d}_t{t}"
-                prompt_short = (prompt_by_idx.get(p, "")[:60] + f" (#{p+1})").strip()
+                prompt_short = (prompt_by_idx.get(p, "")[:60] + f" (#{p + 1})").strip()
                 for arm in ("A", "B"):
                     writer.writerow([label, prompt_short, arm, "", "", "", "", ""])
         csv_written = True
 
     print(f"Wrote: {comparison_path}", file=sys.stderr)
-    print(f"  ({comparison_path.stat().st_size:,} bytes, {len(common)} pairs)",
-          file=sys.stderr)
+    print(f"  ({comparison_path.stat().st_size:,} bytes, {len(common)} pairs)", file=sys.stderr)
     if csv_written:
         print(f"Wrote: {csv_path}", file=sys.stderr)
         print(f"  ({2 * len(common)} rubric rows)", file=sys.stderr)
@@ -203,8 +210,7 @@ Pass criterion: per-axis `B/A` mean ratio `>= 0.90`.
     print("\nNext steps:", file=sys.stderr)
     print(f"  1. Open {comparison_path} and read each pair", file=sys.stderr)
     print(f"  2. Fill scores 0-10 into {csv_path}", file=sys.stderr)
-    print(f"  3. Run: python scripts/aggregate_eval_scores.py {csv_path}",
-          file=sys.stderr)
+    print(f"  3. Run: python scripts/aggregate_eval_scores.py {csv_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":

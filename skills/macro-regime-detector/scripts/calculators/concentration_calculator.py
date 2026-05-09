@@ -16,7 +16,6 @@ Scoring (0-100 = Transition Signal Strength):
   80-100: Strong confirmed transition (crossover + momentum + acceleration aligned)
 """
 
-
 from .utils import (
     STALE_CROSSOVER_MONTHS,
     calculate_ratio,

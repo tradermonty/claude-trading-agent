@@ -28,7 +28,6 @@ State Caps:
   Wide-and-Loose pattern → max "Developing VCP"  (Textbook/Strong/Good禁止)
 """
 
-
 from calculators.execution_state import apply_state_cap
 
 COMPONENT_WEIGHTS = {

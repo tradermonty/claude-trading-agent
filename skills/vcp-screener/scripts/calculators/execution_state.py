@@ -17,7 +17,6 @@ States (highest to lowest precedence):
 """
 
 
-
 def compute_execution_state(
     distance_from_pivot_pct: float | None,
     price: float,

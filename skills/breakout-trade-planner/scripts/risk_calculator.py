@@ -156,25 +156,29 @@ def calculate_position_size(
 
     # Max position % constraint
     max_by_pos = int(account_size * max_position_pct / 100 / worst_entry)
-    constraints.append({
-        "type": "max_position_pct",
-        "limit": max_position_pct,
-        "max_shares": max_by_pos,
-        "binding": False,
-    })
+    constraints.append(
+        {
+            "type": "max_position_pct",
+            "limit": max_position_pct,
+            "max_shares": max_by_pos,
+            "binding": False,
+        }
+    )
     candidates.append(max_by_pos)
 
     # Max sector % constraint
     remaining_pct = max_sector_pct - current_sector_exposure
     remaining_dollars = max(0.0, remaining_pct / 100 * account_size)
     max_by_sector = max(0, int(remaining_dollars / worst_entry))
-    constraints.append({
-        "type": "max_sector_pct",
-        "limit": max_sector_pct,
-        "current": current_sector_exposure,
-        "max_shares": max_by_sector,
-        "binding": False,
-    })
+    constraints.append(
+        {
+            "type": "max_sector_pct",
+            "limit": max_sector_pct,
+            "current": current_sector_exposure,
+            "max_shares": max_by_sector,
+            "binding": False,
+        }
+    )
     candidates.append(max_by_sector)
 
     final_shares = max(0, min(candidates))

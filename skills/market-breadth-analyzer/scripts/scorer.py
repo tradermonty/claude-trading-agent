@@ -25,7 +25,6 @@ Health Zone Mapping (100 = Healthy):
   0-19:   Critical  - Capital preservation
 """
 
-
 COMPONENT_WEIGHTS = {
     "breadth_level_trend": 0.25,
     "ma_crossover": 0.20,
