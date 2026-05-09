@@ -95,7 +95,7 @@ Detects skill commands in user input and dynamically extends the agent's system 
 
 ### Why two skill mechanisms?
 
-This project uses **API Skills** (file delivery to the sandbox) and a **local registry** (prompt injection) together. API Skills make scripts available in the cloud environment; the local registry tells the agent *how* to use them by enriching the system prompt. See `CLAUDE.md` for the full explanation.
+This project uses **API Skills** (file delivery to the sandbox) and a **local registry** (slash-command detection + lean skill hint) together. API Skills make scripts available in the cloud environment; the local registry routes `/vcp-screener` etc. and prepends a one-line hint to the user message so Managed Skills' auto-load can pick the right skill deterministically. From Phase 1 onward, the default path keeps the existing session across skill invocations, preserving conversational context. Set `LEGACY_SKILL_SESSION=1` to fall back to the pre-Phase-1 behavior of forking a new agent/session per skill call. See `CLAUDE.md` for the full explanation.
 
 ## Prerequisites
 
