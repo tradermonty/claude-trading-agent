@@ -117,7 +117,7 @@ class TestFMPEndpointFallback:
     """Tests for _fmp_request stable -> v3 fallback."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_stable_success_uses_stable_url_format(self, mock_requests):
@@ -182,7 +182,7 @@ class TestFMPQuoteFetch:
     """Tests for _fetch_fmp_quotes."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_batch_returns_mapped_dict(self, mock_requests):
@@ -293,7 +293,7 @@ class TestFMPHistoricalFetch:
     """Tests for _fetch_fmp_historical."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_multi_symbol_parses_historicalStockList(self, mock_requests):
@@ -432,7 +432,7 @@ class TestBatchStockMetricsFMP:
     """Tests for FMP-based batch_stock_metrics internal path."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_pe_from_quote(self, mock_requests):
@@ -538,7 +538,7 @@ class TestETFVolumeRatioFMP:
     """Tests for FMP-based ETF volume ratio calculation."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_20d_60d_from_historical(self, mock_requests):

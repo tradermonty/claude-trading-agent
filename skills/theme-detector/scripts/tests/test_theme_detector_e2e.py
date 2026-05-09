@@ -409,8 +409,8 @@ class TestE2EFMPPath:
         """ETFScanner constructed with fmp_api_key stores it."""
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key_123")
-        assert scanner._fmp_api_key == "test_key_123"
+        scanner = ETFScanner(fmp_api_key="test_key_123")  # pragma: allowlist secret
+        assert scanner._fmp_api_key == "test_key_123"  # pragma: allowlist secret
         scanner_no_key = ETFScanner()
         assert scanner_no_key._fmp_api_key is None
 

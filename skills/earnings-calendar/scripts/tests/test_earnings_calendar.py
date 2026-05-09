@@ -22,7 +22,7 @@ from generate_report import (
 @pytest.fixture
 def client():
     """FMP client with dummy API key (no API calls made)."""
-    return FMPEarningsCalendar(api_key="dummy-key")
+    return FMPEarningsCalendar(api_key="dummy-key")  # pragma: allowlist secret
 
 
 @pytest.fixture
