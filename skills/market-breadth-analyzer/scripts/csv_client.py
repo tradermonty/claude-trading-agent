@@ -14,7 +14,6 @@ import csv
 import io
 import sys
 from datetime import datetime
-from typing import Optional
 
 import requests
 
@@ -162,7 +161,7 @@ def check_data_freshness(
     }
 
 
-def _check_last_modified(url: str) -> Optional[str]:
+def _check_last_modified(url: str) -> str | None:
     """Check HTTP Last-Modified header via HEAD request."""
     try:
         resp = requests.head(url, timeout=10, allow_redirects=True)

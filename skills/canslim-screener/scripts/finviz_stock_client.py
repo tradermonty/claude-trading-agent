@@ -17,7 +17,6 @@ Usage:
 
 import sys
 import time
-from typing import Optional
 
 try:
     import requests
@@ -49,7 +48,7 @@ class FinvizStockClient:
             {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
         )
 
-    def _rate_limited_fetch(self, symbol: str) -> Optional[dict]:
+    def _rate_limited_fetch(self, symbol: str) -> dict | None:
         """
         Fetch stock data with rate limiting
 
@@ -166,7 +165,7 @@ class FinvizStockClient:
         return result
 
     @staticmethod
-    def _parse_percentage(pct_str: str) -> Optional[float]:
+    def _parse_percentage(pct_str: str) -> float | None:
         """
         Parse percentage string from Finviz
 
@@ -185,7 +184,7 @@ class FinvizStockClient:
         except (ValueError, AttributeError):
             return None
 
-    def get_stock_data(self, symbol: str) -> Optional[dict]:
+    def get_stock_data(self, symbol: str) -> dict | None:
         """
         Get full stock data dict from Finviz
 

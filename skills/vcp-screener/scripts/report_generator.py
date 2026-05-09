@@ -10,11 +10,10 @@ Outputs:
 """
 
 import json
-from typing import Optional
 
 
 def generate_json_report(
-    results: list[dict], metadata: dict, output_file: str, all_results: Optional[list[dict]] = None
+    results: list[dict], metadata: dict, output_file: str, all_results: list[dict] | None = None
 ):
     """Generate JSON report with screening results.
 
@@ -45,7 +44,7 @@ def generate_json_report(
 
 
 def generate_markdown_report(
-    results: list[dict], metadata: dict, output_file: str, all_results: Optional[list[dict]] = None
+    results: list[dict], metadata: dict, output_file: str, all_results: list[dict] | None = None
 ):
     """Generate Markdown report with VCP screening results.
 

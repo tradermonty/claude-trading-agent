@@ -47,7 +47,7 @@ def make_history(closes: list[float], volumes: list[int] | None = None, start: s
     if len(volumes) != len(closes):
         raise ValueError("closes and volumes must have the same length")
     dates = date_seq(start, len(closes))
-    return [make_bar(d, c, v) for d, c, v in zip(dates, closes, volumes)]
+    return [make_bar(d, c, v) for d, c, v in zip(dates, closes, volumes, strict=True)]
 
 
 def make_dd_history(

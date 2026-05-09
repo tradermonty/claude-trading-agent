@@ -10,7 +10,6 @@ Data Source: finvizfinance.group.performance
 
 import math
 import sys
-from typing import Optional
 
 try:
     from finvizfinance.group import performance as fvperf
@@ -45,7 +44,7 @@ COLUMN_MAP = {
 }
 
 
-def _parse_perf_value(val) -> Optional[float]:
+def _parse_perf_value(val) -> float | None:
     """Parse a performance value to float.
 
     The finvizfinance library may return:

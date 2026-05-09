@@ -27,13 +27,11 @@ to avoid contaminating the dry-up ratio with high breakout volume.
 The breakout quality is tracked separately via breakout_volume_score.
 """
 
-from typing import Optional
-
 
 def calculate_volume_pattern(
     historical_prices: list[dict],
-    pivot_price: Optional[float] = None,
-    contractions: Optional[list[dict]] = None,
+    pivot_price: float | None = None,
+    contractions: list[dict] | None = None,
     breakout_volume_ratio: float = 1.5,
 ) -> dict:
     """
@@ -183,7 +181,7 @@ def _zone_volume_analysis(
     volumes: list[int],
     closes: list[float],
     contractions: list[dict],
-    pivot_price: Optional[float],
+    pivot_price: float | None,
     avg_volume_50d: float,
 ) -> tuple:
     """Perform zone-based volume analysis using contraction boundaries.

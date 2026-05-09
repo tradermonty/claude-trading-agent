@@ -8,7 +8,6 @@ Generates JSON and Markdown reports for detected market themes.
 import json
 import os
 from datetime import datetime
-from typing import Optional
 
 
 def generate_json_report(
@@ -429,12 +428,12 @@ def _heat_bar(heat: float) -> str:
 _ORIGIN_LABELS = {"seed": "Seed", "vertical": "Vertical", "discovered": "*NEW*"}
 
 
-def _origin_label(origin: Optional[str]) -> str:
+def _origin_label(origin: str | None) -> str:
     """Format theme origin for display."""
     return _ORIGIN_LABELS.get(origin or "seed", "Seed")
 
 
-def _direction_label(direction: Optional[str]) -> str:
+def _direction_label(direction: str | None) -> str:
     """Format direction for display.
 
     Uses LEAD/LAG instead of BULL/BEAR because direction is determined
@@ -448,7 +447,7 @@ def _direction_label(direction: Optional[str]) -> str:
     return "N/A"
 
 
-def _direction_arrow(direction: Optional[str]) -> str:
+def _direction_arrow(direction: str | None) -> str:
     """Format direction as arrow."""
     if direction == "bullish":
         return "^"
@@ -457,7 +456,7 @@ def _direction_arrow(direction: Optional[str]) -> str:
     return "-"
 
 
-def _fmt_pct(value: Optional[float]) -> str:
+def _fmt_pct(value: float | None) -> str:
     """Format a percent value as percentage string (no conversion)."""
     if value is None:
         return "N/A"

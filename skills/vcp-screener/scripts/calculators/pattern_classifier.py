@@ -14,15 +14,13 @@ Pattern Types (priority order, first match wins):
   VCP-adjacent    - Some VCP characteristics but not fully textbook-quality
 """
 
-from typing import Optional
-
 
 def classify_pattern(
     valid_vcp: bool,
     num_contractions: int,
-    final_contraction_depth: Optional[float],
+    final_contraction_depth: float | None,
     execution_state: str,
-    dry_up_ratio: Optional[float],
+    dry_up_ratio: float | None,
     wide_and_loose: bool = False,
 ) -> str:
     """

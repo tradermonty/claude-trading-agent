@@ -20,7 +20,7 @@ import argparse
 import os
 import sys
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # pyyaml may not be installed in all envs (pyproject does include it).
@@ -401,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
         base_trailing_stop_pct=base_trail,
     )
 
-    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    generated_at = datetime.now(UTC).isoformat(timespec="seconds")
     aggregate_audit = {
         "data_source": "fmp",
         "rule_version": RULE_VERSION,

@@ -12,10 +12,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
-from typing import Optional
 
 
-def get_api_key() -> Optional[str]:
+def get_api_key() -> str | None:
     """
     Get FMP API key from environment variable.
 

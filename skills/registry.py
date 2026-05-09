@@ -53,7 +53,7 @@ class SkillDefinition:
         if msg == self.command:
             return self.name
         if msg.startswith(self.command + " ") or msg.startswith(self.command + "\t"):
-            arg = msg[len(self.command):].strip().strip('"').strip("'").strip()
+            arg = msg[len(self.command) :].strip().strip('"').strip("'").strip()
             return arg if arg else self.name
 
         # Both sides lowercased so uppercase keywords like "FOMC" or
@@ -77,19 +77,37 @@ SCENARIO_ANALYZER = SkillDefinition(
 FTD_DETECTOR = SkillDefinition(
     name="ftd-detector",
     command="/ftd-detector",
-    trigger_keywords=["ftd", "フォロースルーデイ", "市場底入れ", "follow-through day", "底入れ確認"],
+    trigger_keywords=[
+        "ftd",
+        "フォロースルーデイ",
+        "市場底入れ",
+        "follow-through day",
+        "底入れ確認",
+    ],
 )
 
 VCP_SCREENER = SkillDefinition(
     name="vcp-screener",
     command="/vcp-screener",
-    trigger_keywords=["vcp", "ボラティリティ収縮", "ミネルヴィニ", "ブレイクアウト候補", "volatility contraction"],
+    trigger_keywords=[
+        "vcp",
+        "ボラティリティ収縮",
+        "ミネルヴィニ",
+        "ブレイクアウト候補",
+        "volatility contraction",
+    ],
 )
 
 MACRO_REGIME_DETECTOR = SkillDefinition(
     name="macro-regime-detector",
     command="/macro-regime",
-    trigger_keywords=["マクロレジーム", "レジーム検出", "マクロ環境", "regime detection", "macro regime"],
+    trigger_keywords=[
+        "マクロレジーム",
+        "レジーム検出",
+        "マクロ環境",
+        "regime detection",
+        "macro regime",
+    ],
 )
 
 CANSLIM_SCREENER = SkillDefinition(
@@ -101,7 +119,13 @@ CANSLIM_SCREENER = SkillDefinition(
 THEME_DETECTOR = SkillDefinition(
     name="theme-detector",
     command="/theme-detector",
-    trigger_keywords=["テーマ検出", "市場テーマ", "セクターローテーション", "trending themes", "theme detector"],
+    trigger_keywords=[
+        "テーマ検出",
+        "市場テーマ",
+        "セクターローテーション",
+        "trending themes",
+        "theme detector",
+    ],
 )
 
 MARKET_BREADTH_ANALYZER = SkillDefinition(
@@ -119,13 +143,26 @@ EARNINGS_CALENDAR = SkillDefinition(
 ECONOMIC_CALENDAR = SkillDefinition(
     name="economic-calendar-fetcher",
     command="/econ-calendar",
-    trigger_keywords=["経済カレンダー", "economic calendar", "経済指標", "FOMC", "雇用統計", "CPI発表"],
+    trigger_keywords=[
+        "経済カレンダー",
+        "economic calendar",
+        "経済指標",
+        "FOMC",
+        "雇用統計",
+        "CPI発表",
+    ],
 )
 
 BREAKOUT_TRADE_PLANNER = SkillDefinition(
     name="breakout-trade-planner",
     command="/breakout-plan",
-    trigger_keywords=["ブレイクアウト計画", "トレードプラン", "breakout plan", "エントリー計画", "ポジションサイズ"],
+    trigger_keywords=[
+        "ブレイクアウト計画",
+        "トレードプラン",
+        "breakout plan",
+        "エントリー計画",
+        "ポジションサイズ",
+    ],
 )
 
 IBD_DISTRIBUTION_DAY_MONITOR = SkillDefinition(

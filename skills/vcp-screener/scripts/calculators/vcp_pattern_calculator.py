@@ -16,8 +16,6 @@ VCP Characteristics:
 - Pattern duration: 15-325 trading days
 """
 
-from typing import Optional
-
 
 def calculate_vcp_pattern(
     historical_prices: list[dict],
@@ -162,7 +160,7 @@ def calculate_vcp_pattern(
     score = _score_vcp(contractions, validation)
 
     # ATR compression ratio: recent ATR(10) / ATR(50) — lower = more compressed
-    atr_compression_ratio: Optional[float] = None
+    atr_compression_ratio: float | None = None
     if atr_10 > 0 and atr_50 > 0:
         atr_compression_ratio = atr_10 / atr_50
 
@@ -171,7 +169,7 @@ def calculate_vcp_pattern(
 
     # Right-side tightness: 15-bar price range / ATR(50)
     # Measures how compact the right side of the base is (lower = tighter)
-    right_side_range_ratio: Optional[float] = None
+    right_side_range_ratio: float | None = None
     if atr_50 > 0 and n >= 15:
         recent_range = max(highs[-15:]) - min(lows[-15:])
         right_side_range_ratio = recent_range / atr_50
@@ -607,7 +605,7 @@ def _get_pivot_price(
     contractions: list[dict],
     highs: list[float],
     swing_highs: list[tuple[int, float]],
-) -> Optional[float]:
+) -> float | None:
     """Get the pivot (breakout) price - high of the last contraction."""
     if contractions:
         return contractions[-1]["high_price"]

@@ -16,16 +16,14 @@ States (highest to lowest precedence):
   Pre-breakout - Within or below pivot (ideal entry zone)
 """
 
-from typing import Optional
-
 
 def compute_execution_state(
-    distance_from_pivot_pct: Optional[float],
+    distance_from_pivot_pct: float | None,
     price: float,
-    sma50: Optional[float],
-    sma200: Optional[float],
-    sma200_distance_pct: Optional[float],
-    last_contraction_low: Optional[float],
+    sma50: float | None,
+    sma200: float | None,
+    sma200_distance_pct: float | None,
+    last_contraction_low: float | None,
     breakout_volume: bool,
     max_sma200_extension: float = 50.0,
 ) -> dict:

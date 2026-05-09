@@ -24,8 +24,6 @@ Total: 100%
 - Transitional: 3+ components signaling, unclear pattern
 """
 
-from typing import Optional
-
 COMPONENT_WEIGHTS = {
     "concentration": 0.25,
     "yield_curve": 0.20,
@@ -46,7 +44,7 @@ COMPONENT_LABELS = {
 
 
 def calculate_composite_score(
-    component_scores: dict[str, float], data_availability: Optional[dict[str, bool]] = None
+    component_scores: dict[str, float], data_availability: dict[str, bool] | None = None
 ) -> dict:
     """
     Calculate weighted composite transition signal score.
@@ -396,7 +394,7 @@ def _calculate_transition_probability(
     all_scores: list[float],
     regime_scores: dict[str, int],
     current_regime: str,
-    sorted_regimes: Optional[list] = None,
+    sorted_regimes: list | None = None,
 ) -> dict:
     """
     Calculate probability that a regime transition is underway.

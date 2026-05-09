@@ -18,7 +18,6 @@ O'Neil's FTD Rules:
 """
 
 from enum import Enum
-from typing import Optional
 
 
 class MarketState(Enum):
@@ -44,7 +43,7 @@ FTD_GAIN_RECOMMENDED = 1.5
 FTD_GAIN_STRONG = 2.0
 
 
-def _is_swing_low(history: list[dict], i: int) -> Optional[dict]:
+def _is_swing_low(history: list[dict], i: int) -> dict | None:
     """Check if index i in history qualifies as a swing low.
 
     Returns dict with swing low details, or None.
@@ -106,7 +105,7 @@ def _is_swing_low(history: list[dict], i: int) -> Optional[dict]:
     }
 
 
-def find_swing_low(history: list[dict]) -> Optional[dict]:
+def find_swing_low(history: list[dict]) -> dict | None:
     """Find the most recent qualifying swing low in chronological history."""
     if not history or len(history) < 5:
         return None

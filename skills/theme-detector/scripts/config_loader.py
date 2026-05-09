@@ -13,7 +13,6 @@ Error handling:
 import copy
 import os
 import sys
-from typing import Optional
 
 # Build tuple of catchable YAML errors (yaml may not be installed)
 _YAML_ERRORS: tuple = ()
@@ -26,7 +25,7 @@ except ImportError:
 
 
 def load_themes_config(
-    yaml_path: Optional[str] = None,
+    yaml_path: str | None = None,
 ) -> tuple[dict, dict[str, int]]:
     """Load themes config and ETF catalog.
 

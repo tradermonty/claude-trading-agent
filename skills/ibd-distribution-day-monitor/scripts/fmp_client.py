@@ -19,7 +19,6 @@ import os
 import sys
 import time
 from datetime import date, timedelta
-from typing import Optional
 
 try:
     import requests
@@ -58,7 +57,7 @@ _FMP_ENDPOINTS = {
 }
 
 
-def _normalize_eod_flat_list(data, symbols_str: str, limit: Optional[int] = None):
+def _normalize_eod_flat_list(data, symbols_str: str, limit: int | None = None):
     """Convert stable/historical-price-eod/full flat list to v3-compatible dict.
 
     Input  : [{"symbol": "SPY", "date": "...", "open": ..., ...}, ...]
@@ -118,7 +117,7 @@ class FMPClient:
 
     _ENDPOINT_FAILURE_THRESHOLD = 3  # disable endpoint after N consecutive failures
 
-    def __init__(self, api_key: Optional[str] = None, max_api_calls: int = 200):
+    def __init__(self, api_key: str | None = None, max_api_calls: int = 200):
         self.api_key = api_key or os.getenv("FMP_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -139,8 +138,8 @@ class FMPClient:
         self._disabled_endpoints: set[str] = set()
 
     def _rate_limited_get(
-        self, url: str, params: Optional[dict] = None, quiet: bool = False
-    ) -> Optional[dict]:
+        self, url: str, params: dict | None = None, quiet: bool = False
+    ) -> dict | None:
         """Make a rate-limited GET request with budget enforcement.
 
         Raises:
@@ -266,7 +265,7 @@ class FMPClient:
         if failures >= self._ENDPOINT_FAILURE_THRESHOLD:
             self._disabled_endpoints.add(base_url)
 
-    def get_earnings_calendar(self, from_date: str, to_date: str) -> Optional[list[dict]]:
+    def get_earnings_calendar(self, from_date: str, to_date: str) -> list[dict] | None:
         """Fetch earnings calendar for a date range.
 
         Args:
@@ -318,7 +317,7 @@ class FMPClient:
                     results[profile["symbol"]] = profile
         return results
 
-    def get_historical_prices(self, symbol: str, days: int = 90) -> Optional[dict]:
+    def get_historical_prices(self, symbol: str, days: int = 90) -> dict | None:
         """Fetch historical daily OHLCV data.
 
         Args:

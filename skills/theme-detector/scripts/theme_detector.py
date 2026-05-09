@@ -20,7 +20,6 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Optional
 
 # Ensure scripts directory is on the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -383,7 +382,7 @@ def detect_divergence(heat_breakdown: dict, direction: str) -> dict | None:
         }
 
 
-def _calculate_breadth_ratio(theme: dict) -> Optional[float]:
+def _calculate_breadth_ratio(theme: dict) -> float | None:
     """Estimate breadth ratio from theme's matching industries.
 
     For bullish: ratio of industries with positive weighted_return.

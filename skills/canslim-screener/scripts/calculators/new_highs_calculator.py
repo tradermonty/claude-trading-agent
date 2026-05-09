@@ -16,10 +16,8 @@ Scoring:
 - 20: >25% from 52-week high (lacks momentum)
 """
 
-from typing import Optional
 
-
-def calculate_newness(quote: dict, historical_prices: Optional[dict] = None) -> dict:
+def calculate_newness(quote: dict, historical_prices: dict | None = None) -> dict:
     """
     Calculate N component score based on price position and momentum
 

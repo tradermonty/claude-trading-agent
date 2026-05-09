@@ -347,7 +347,9 @@ class TestCallerRegression:
                 return None
 
             with (
-                patch.object(ftd_detector.FMPClient, "get_historical_prices", side_effect=mock_hist),
+                patch.object(
+                    ftd_detector.FMPClient, "get_historical_prices", side_effect=mock_hist
+                ),
                 patch.object(ftd_detector.FMPClient, "get_quote", return_value=None),
                 patch.object(ftd_detector, "generate_json_report"),
                 patch.object(ftd_detector, "generate_markdown_report"),
