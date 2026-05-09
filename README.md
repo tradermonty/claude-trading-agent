@@ -205,6 +205,7 @@ See `.env.example` for all available variables.
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key |
 | `FMP_API_KEY` | No | Financial Modeling Prep API key |
+| `INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT` | No | `1` preserves current cloud-script behavior; set `0` to avoid embedding the raw FMP key in the Managed Agent system prompt |
 | `CLAUDE_MODEL` | No | Model to use (default: `claude-sonnet-4-6`) |
 | `MANAGED_AGENT_ID` | No | Existing Agent ID (auto-set by `bootstrap.py`) |
 | `MANAGED_ENVIRONMENT_ID` | No | Existing Environment ID (auto-set by `bootstrap.py`) |

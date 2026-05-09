@@ -4,6 +4,7 @@ import os
 from unittest import mock
 
 from config.settings import (
+    _parse_bool,
     _parse_log_format,
     _parse_log_level,
     _parse_positive_int,
@@ -23,6 +24,20 @@ class TestParsePositiveInt:
 
     def test_whitespace_stripped(self):
         assert _parse_positive_int("  20  ", default=5) == 20
+
+
+class TestParseBool:
+    def test_truthy_values(self):
+        for raw in ("1", "true", "yes", "on", " TRUE "):
+            assert _parse_bool(raw) is True
+
+    def test_falsey_values(self):
+        for raw in ("0", "false", "no", "off", " OFF "):
+            assert _parse_bool(raw, default=True) is False
+
+    def test_unknown_returns_default(self):
+        assert _parse_bool("maybe", default=True) is True
+        assert _parse_bool("maybe", default=False) is False
 
 
 class TestParseUiLocale:

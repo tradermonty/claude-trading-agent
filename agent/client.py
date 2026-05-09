@@ -22,6 +22,7 @@ from config.settings import (
     FMP_API_KEY,
     FTD_DETECTOR_SKILL_ID,
     IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID,
+    INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT,
     MACRO_REGIME_DETECTOR_SKILL_ID,
     MARKET_BREADTH_ANALYZER_SKILL_ID,
     SCENARIO_ANALYZER_SKILL_ID,
@@ -219,7 +220,7 @@ class ManagedAgentClient:
 def _build_system_prompt(base_prompt: str) -> str:
     """Append API key instructions to the system prompt."""
     parts = [base_prompt]
-    if FMP_API_KEY:
+    if FMP_API_KEY and INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT:
         parts.append(
             "\n\n## Available API Keys\n\n"
             "The following API keys are pre-configured. "
