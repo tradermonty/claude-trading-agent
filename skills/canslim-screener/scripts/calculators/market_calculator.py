@@ -16,11 +16,9 @@ Scoring:
 - 0: Bear market (S&P 500 well below 50-EMA OR VIX >30) - DO NOT BUY
 """
 
-from typing import Optional
-
 
 def calculate_market_direction(
-    sp500_quote: dict, sp500_prices: Optional[list[dict]] = None, vix_quote: Optional[dict] = None
+    sp500_quote: dict, sp500_prices: list[dict] | None = None, vix_quote: dict | None = None
 ) -> dict:
     """
     Calculate M component score based on S&P 500 trend and VIX
@@ -149,7 +147,7 @@ def calculate_ema(prices: list[float], period: int = 50) -> float:
     return ema
 
 
-def score_market_direction(trend: str, vix_level: Optional[float]) -> int:
+def score_market_direction(trend: str, vix_level: float | None) -> int:
     """
     Score M component based on trend and VIX
 
@@ -182,7 +180,7 @@ def score_market_direction(trend: str, vix_level: Optional[float]) -> int:
     return min(max(base_score, 0), 100)
 
 
-def interpret_market_score(score: int, trend: str, distance: float, vix: Optional[float]) -> str:
+def interpret_market_score(score: int, trend: str, distance: float, vix: float | None) -> str:
     """
     Generate human-readable market interpretation
 

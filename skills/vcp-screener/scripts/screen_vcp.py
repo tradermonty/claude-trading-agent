@@ -24,7 +24,6 @@ import argparse
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -267,7 +266,7 @@ def analyze_stock(
     breakout_volume_ratio: float = 1.5,
     max_sma200_extension: float = 50.0,
     wide_and_loose_threshold: float = 15.0,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Full VCP analysis for a single stock (Phase 3).
     No additional API calls needed - uses pre-fetched data.
@@ -324,7 +323,7 @@ def analyze_stock(
 
     # 6. Execution State — separates "strong pattern" from "buyable now"
     sma200_tt = tt_result.get("sma200")
-    sma200_distance_pct: Optional[float] = None
+    sma200_distance_pct: float | None = None
     if sma200_tt and sma200_tt > 0:
         sma200_distance_pct = (price - sma200_tt) / sma200_tt * 100
 

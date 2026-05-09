@@ -24,8 +24,6 @@ Scoring (100 = healthy):
   No marker within 120 days -> 50 (neutral)
 """
 
-from typing import Optional
-
 
 def calculate_cycle_position(rows: list[dict]) -> dict:
     """
@@ -85,7 +83,7 @@ def calculate_cycle_position(rows: list[dict]) -> dict:
     }
 
 
-def _find_latest_marker(recent: list[dict]) -> tuple[Optional[str], int, Optional[int]]:
+def _find_latest_marker(recent: list[dict]) -> tuple[str | None, int, int | None]:
     """
     Find the most recent peak or trough marker.
 
@@ -104,8 +102,8 @@ def _find_latest_marker(recent: list[dict]) -> tuple[Optional[str], int, Optiona
 
 
 def _calculate_score(
-    marker_type: Optional[str],
-    days_since: Optional[int],
+    marker_type: str | None,
+    days_since: int | None,
     ma8_trend: str,
     extreme_trough: bool,
 ) -> int:
@@ -142,8 +140,8 @@ def _calculate_score(
 
 
 def _generate_signal(
-    marker_type: Optional[str],
-    days_since: Optional[int],
+    marker_type: str | None,
+    days_since: int | None,
     ma8_trend: str,
     score: int,
 ) -> str:

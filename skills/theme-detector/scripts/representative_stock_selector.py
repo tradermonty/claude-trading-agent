@@ -13,7 +13,6 @@ import csv
 import io
 import logging
 import time
-from typing import Optional
 
 try:
     import requests
@@ -118,7 +117,7 @@ def _parse_market_cap(value) -> int:
         return 0
 
 
-def _parse_change(value) -> Optional[float]:
+def _parse_change(value) -> float | None:
     """Parse FINVIZ Change value to float percentage.
 
     "12.50%"  -> 12.50
@@ -151,7 +150,7 @@ def _parse_change(value) -> Optional[float]:
     return None
 
 
-def _parse_volume(value) -> Optional[int]:
+def _parse_volume(value) -> int | None:
     """Parse FINVIZ Volume value to integer.
 
     "1,234,567" -> 1234567
@@ -198,8 +197,8 @@ class RepresentativeStockSelector:
 
     def __init__(
         self,
-        finviz_elite_key: Optional[str] = None,
-        fmp_api_key: Optional[str] = None,
+        finviz_elite_key: str | None = None,
+        fmp_api_key: str | None = None,
         finviz_mode: str = "public",
         rate_limit_sec: float = 1.0,
         max_per_industry: int = 4,
@@ -535,7 +534,7 @@ class RepresentativeStockSelector:
             else:
                 change_vals.append((i, None))
 
-        change_rank: dict[int, Optional[int]] = {}
+        change_rank: dict[int, int | None] = {}
         if has_change:
             valid = [(i, v) for i, v in change_vals if v is not None]
             valid_sorted = sorted(valid, key=lambda x: x[1], reverse=True)
@@ -559,7 +558,7 @@ class RepresentativeStockSelector:
             else:
                 vol_vals.append((i, None))
 
-        vol_rank: dict[int, Optional[int]] = {}
+        vol_rank: dict[int, int | None] = {}
         if has_volume:
             valid = [(i, v) for i, v in vol_vals if v is not None]
             valid_sorted = sorted(valid, key=lambda x: x[1], reverse=True)

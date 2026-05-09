@@ -16,8 +16,6 @@ Scoring (100 = healthy):
     Current <= avg_trough * 1.05 -> +10 (oversold zone)
 """
 
-from typing import Optional
-
 
 def calculate_historical_percentile(
     rows: list[dict],
@@ -96,7 +94,7 @@ def _score_percentile(percentile: float) -> int:
         return 10
 
 
-def _safe_float(val: str) -> Optional[float]:
+def _safe_float(val: str) -> float | None:
     """Safely parse float from string."""
     try:
         return float(val)

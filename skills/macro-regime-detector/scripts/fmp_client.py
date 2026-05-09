@@ -16,7 +16,6 @@ Features:
 import os
 import sys
 import time
-from typing import Optional
 
 try:
     import requests
@@ -32,7 +31,7 @@ class FMPClient:
     STABLE_URL = "https://financialmodelingprep.com/stable"
     RATE_LIMIT_DELAY = 0.3  # 300ms between requests
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.getenv("FMP_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -48,7 +47,7 @@ class FMPClient:
         self.max_retries = 1
         self.api_calls_made = 0
 
-    def _rate_limited_get(self, url: str, params: Optional[dict] = None) -> Optional[dict]:
+    def _rate_limited_get(self, url: str, params: dict | None = None) -> dict | None:
         if self.rate_limit_reached:
             return None
 
@@ -87,7 +86,7 @@ class FMPClient:
             print(f"ERROR: Request exception: {e}", file=sys.stderr)
             return None
 
-    def get_historical_prices(self, symbol: str, days: int = 600) -> Optional[dict]:
+    def get_historical_prices(self, symbol: str, days: int = 600) -> dict | None:
         """Fetch historical daily OHLCV data"""
         cache_key = f"prices_{symbol}_{days}"
         if cache_key in self.cache:
@@ -109,7 +108,7 @@ class FMPClient:
                 results[symbol] = data["historical"]
         return results
 
-    def get_treasury_rates(self, days: int = 600) -> Optional[list[dict]]:
+    def get_treasury_rates(self, days: int = 600) -> list[dict] | None:
         """
         Fetch treasury rate data from FMP stable endpoint.
 

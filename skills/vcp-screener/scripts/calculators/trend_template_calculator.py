@@ -18,13 +18,11 @@ Scoring: Each criterion = 14.3 points (7 x 14.3 = ~100)
 Pass threshold: >= 85 (must meet at least 6 of 7 criteria)
 """
 
-from typing import Optional
-
 
 def calculate_trend_template(
     historical_prices: list[dict],
     quote_data: dict,
-    rs_rank: Optional[int] = None,
+    rs_rank: int | None = None,
     ext_threshold: float = 8.0,
     max_sma200_extension: float = 50.0,
 ) -> dict:
@@ -214,7 +212,7 @@ def calculate_trend_template(
 
 def _calculate_sma200_penalty(
     price: float,
-    sma200: Optional[float],
+    sma200: float | None,
     max_extension: float = 50.0,
 ) -> tuple:
     """Calculate penalty for price extended too far above SMA200.
@@ -257,7 +255,7 @@ def _calculate_sma200_penalty(
 
 
 def _calculate_extended_penalty(
-    price: float, sma50: Optional[float], base_threshold: float = 8.0
+    price: float, sma50: float | None, base_threshold: float = 8.0
 ) -> tuple:
     """Calculate penalty for price extended too far above SMA 50.
 
@@ -289,7 +287,7 @@ def _calculate_extended_penalty(
         return -5, distance_pct
 
 
-def _sma(prices: list[float], period: int) -> Optional[float]:
+def _sma(prices: list[float], period: int) -> float | None:
     """Calculate Simple Moving Average. Prices are most-recent-first."""
     if len(prices) < period:
         return None
