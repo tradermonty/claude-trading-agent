@@ -13,12 +13,19 @@ SKILLS_DIR = Path(__file__).resolve().parent
 
 @dataclass
 class SkillMatch:
-    """Result of matching a user message to a skill."""
+    """Result of matching a user message to a skill.
+
+    system_supplement and reference_context are consumed by the legacy
+    skill-session path (LEGACY_SKILL_SESSION=1). skill_hint is the lean
+    user-message prefix used by the default path that reuses the existing
+    session and lets Managed Skills auto-load.
+    """
 
     skill_name: str
     headline: str
     system_supplement: str
     reference_context: str
+    skill_hint: str = ""
 
 
 @dataclass
@@ -236,10 +243,15 @@ def detect_skill(user_message: str) -> SkillMatch | None:
                 else ""
             )
 
+            skill_hint = (
+                f"Use the {skill.name} skill for this request: {headline}"
+            )
+
             return SkillMatch(
                 skill_name=skill.name,
                 headline=headline,
                 system_supplement=system_supplement,
                 reference_context=reference_context,
+                skill_hint=skill_hint,
             )
     return None

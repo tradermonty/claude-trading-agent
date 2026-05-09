@@ -230,6 +230,7 @@ def _stream_response(
     *,
     system_supplement: str = "",
     reference_context: str = "",
+    skill_hint: str = "",
 ) -> tuple[str, list[dict[str, str]]]:
     """Fetch and progressively render a single assistant response.
 
@@ -242,6 +243,7 @@ def _stream_response(
         prompt,
         system_supplement=system_supplement,
         reference_context=reference_context,
+        skill_hint=skill_hint,
     ):
         ctype = chunk.get("type")
         content = sanitize(chunk.get("content", ""))
@@ -422,11 +424,13 @@ def render_app() -> None:
     skill_match = detect_skill(prompt)
     system_supplement = ""
     reference_context = ""
+    skill_hint = ""
 
     if skill_match:
         display_prompt = f"🔧 **{skill_match.skill_name}**: {skill_match.headline}"
         system_supplement = skill_match.system_supplement
         reference_context = skill_match.reference_context
+        skill_hint = skill_match.skill_hint
     else:
         display_prompt = prompt
 
@@ -454,6 +458,7 @@ def render_app() -> None:
                 response_placeholder=response_placeholder,
                 system_supplement=system_supplement,
                 reference_context=reference_context,
+                skill_hint=skill_hint,
             )
         except Exception as exc:
             logger.exception("Chat request failed")
