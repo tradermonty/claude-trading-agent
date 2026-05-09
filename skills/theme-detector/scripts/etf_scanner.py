@@ -25,6 +25,7 @@ try:
 
     HAS_YFINANCE = True
 except ImportError:
+    yf = None
     HAS_YFINANCE = False
 
 try:

@@ -172,7 +172,7 @@ class TestFMPEndpointFallback:
 
         result = scanner._fmp_request("quote", "AAPL")
         assert result is None
-        assert scanner._stats["fmp_failures"] == 2
+        assert scanner.backend_stats()["fmp_failures"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -624,6 +624,7 @@ class TestBatchETFVolumeRatios:
 class TestSymbolLevelFallback:
     """Tests for symbol-level FMP -> yfinance fallback."""
 
+    @patch("etf_scanner.HAS_YFINANCE", True)
     @patch("etf_scanner._requests_lib")
     @patch("etf_scanner.yf")
     def test_partial_fmp_success_fills_missing_from_yfinance(self, mock_yf, mock_requests):
@@ -675,7 +676,7 @@ class TestSymbolLevelFallback:
         msft = [r for r in results if r["symbol"] == "MSFT"][0]
         assert msft["pe_ratio"] == 35.0
         # Stats show fallback occurred
-        assert scanner._stats["yf_fallbacks"] >= 1
+        assert scanner.backend_stats()["yf_fallbacks"] >= 1
 
     @patch("etf_scanner._requests_lib")
     def test_all_fmp_success_no_yfinance_calls(self, mock_requests):
@@ -700,8 +701,9 @@ class TestSymbolLevelFallback:
             scanner.batch_stock_metrics(["AAPL"])
             mock_yf.download.assert_not_called()
 
-        assert scanner._stats["yf_calls"] == 0
+        assert scanner.backend_stats()["yf_calls"] == 0
 
+    @patch("etf_scanner.HAS_YFINANCE", True)
     @patch("etf_scanner.HAS_REQUESTS", False)
     @patch("etf_scanner.yf")
     def test_all_fmp_fail_falls_back_entirely(self, mock_yf):
@@ -723,7 +725,7 @@ class TestSymbolLevelFallback:
 
         results = scanner.batch_stock_metrics(["AAPL"])
         assert len(results) == 1
-        assert scanner._stats["yf_calls"] == 1
+        assert scanner.backend_stats()["yf_calls"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -757,6 +759,7 @@ class TestBackendStats:
         assert stats["fmp_calls"] == 1
         assert stats["fmp_failures"] == 0
 
+    @patch("etf_scanner.HAS_YFINANCE", True)
     @patch("etf_scanner._requests_lib")
     @patch("etf_scanner.yf")
     def test_stats_after_yfinance_fallback(self, mock_yf, mock_requests):
@@ -788,6 +791,7 @@ class TestBackendStats:
         assert stats["yf_fallbacks"] == 1  # FMP attempted but failed entirely
         assert stats["fmp_failures"] > 0
 
+    @patch("etf_scanner.HAS_YFINANCE", True)
     @patch("etf_scanner._requests_lib")
     @patch("etf_scanner.yf")
     def test_yf_calls_and_yf_fallbacks_increment(self, mock_yf, mock_requests):
