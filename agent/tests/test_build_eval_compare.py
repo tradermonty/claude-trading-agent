@@ -18,6 +18,8 @@ def _load_module():
         "build_eval_compare",
         PROJECT_ROOT / "scripts" / "build_eval_compare.py",
     )
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

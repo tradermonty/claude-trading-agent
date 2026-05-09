@@ -26,6 +26,7 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.9.0",
+    "mypy>=1.10.0",
     "bandit[toml]>=1.7.0",
     "detect-secrets>=1.5.0",
     "codespell>=2.3.0",
@@ -51,6 +52,15 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/conftest.py" = ["E402"]
 "**/test_*.py" = ["E402"]
+
+# --- Mypy ---
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+files = ["common", "config", "agent"]
 
 # --- Pytest ---
 

@@ -18,13 +18,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install linters
-        run: pip install "ruff==0.9.6" codespell
+        run: pip install "ruff==0.9.6" "mypy>=1.10.0" codespell
 
       - name: Ruff check
         run: ruff check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
 
       - name: Ruff format check
         run: ruff format --check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+
+      - name: Mypy check
+        run: mypy common config agent
 
       - name: Codespell
         run: codespell --toml pyproject.toml common/ skills/ agent/ config/ scripts/
