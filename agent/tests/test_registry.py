@@ -60,6 +60,44 @@ class TestSkillDetection:
         assert "ftd_methodology.md" in result.reference_context
 
 
+class TestRefsDisabledEnv:
+    """Verify SKILLS_REFS_DISABLED env suppresses reference_context per skill."""
+
+    def test_refs_disabled_for_specified_skill(self, monkeypatch):
+        # market-breadth-analyzer should have empty reference_context
+        monkeypatch.setenv("SKILLS_REFS_DISABLED", "market-breadth-analyzer")
+        result = detect_skill("/breadth")
+        assert result is not None
+        assert result.skill_name == "market-breadth-analyzer"
+        assert result.reference_context == ""
+
+    def test_refs_disabled_does_not_affect_other_skills(self, monkeypatch):
+        # vcp-screener still gets its references when only market-breadth is disabled
+        monkeypatch.setenv("SKILLS_REFS_DISABLED", "market-breadth-analyzer")
+        result = detect_skill("/vcp-screener")
+        assert result is not None
+        assert result.skill_name == "vcp-screener"
+        assert result.reference_context != ""
+        assert "vcp_methodology.md" in result.reference_context
+
+    def test_env_unset_full_compat(self, monkeypatch):
+        # No env → all skills load references as before (regression guard)
+        monkeypatch.delenv("SKILLS_REFS_DISABLED", raising=False)
+        result = detect_skill("/breadth")
+        assert result is not None
+        assert result.reference_context != ""
+
+    def test_refs_disabled_handles_whitespace_and_empty(self, monkeypatch):
+        # " market-breadth-analyzer ,, vcp-screener " parses to two clean names
+        monkeypatch.setenv(
+            "SKILLS_REFS_DISABLED", " market-breadth-analyzer ,, vcp-screener "
+        )
+        breadth = detect_skill("/breadth")
+        vcp = detect_skill("/vcp-screener")
+        assert breadth.reference_context == ""
+        assert vcp.reference_context == ""
+
+
 class TestSkillRegistry:
     """Verify registry integrity."""
 
