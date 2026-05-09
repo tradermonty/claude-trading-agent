@@ -127,6 +127,11 @@ class ManagedAgentClient:
         the rewritten "Use the X skill for this request: ..." string. The
         client itself is skill-agnostic and only deals with the session
         event stream.
+
+        Content blocks are sent in the order [user_message, date_ctx] so the
+        skill-routing prefix (when present) is the first content block the
+        agent sees — matching the structure used during the Phase 2 A/B
+        evaluation that informed Phase 3.
         """
         session_id = self.ensure_session()
 
@@ -134,7 +139,8 @@ class ManagedAgentClient:
         now = datetime.now().astimezone()
         date_ctx = now.strftime("[Current: %Y-%m-%d (%a) %H:%M %Z]")
         content_blocks = [
-            {"type": "text", "text": f"{date_ctx}\n\n{user_message}"}
+            {"type": "text", "text": user_message},
+            {"type": "text", "text": date_ctx},
         ]
 
         try:

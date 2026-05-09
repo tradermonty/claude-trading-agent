@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Generate comparison.md and scoring.csv from an A/B eval output directory.
 
-Companion to scripts/eval_skill_refs.py. Reads the per-trial markdown files
-written by eval_skill_refs.py (A_refs_on/ and B_refs_off/ subdirs) and
-produces:
+Reads per-trial markdown files in ``A_refs_on/`` and ``B_refs_off/``
+subdirectories of an eval output directory and produces:
 
   - comparison.md: all 5 prompts × N trials × 2 arms in a single
     side-by-side document for human reviewer to read pair by pair
@@ -19,6 +18,12 @@ By default the script REFUSES to overwrite a scoring.csv that already
 contains user-supplied scores (any non-empty value in the score columns).
 Pass --force to overwrite. comparison.md is always regenerated since it's
 deterministic from the raw eval markdown files.
+
+This tool was originally built as a companion to a now-removed Phase 2
+A/B harness (scripts/eval_skill_refs.py). It is kept for auditing and
+re-aggregating archived eval artifacts under ``reports/eval/`` and for
+future ad-hoc skill evaluations that follow the same A_refs_on/B_refs_off
+directory layout.
 """
 
 from __future__ import annotations

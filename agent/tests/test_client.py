@@ -94,7 +94,9 @@ class TestSessionReuse:
 class TestUserMessageContent:
     """User message content blocks are built consistently."""
 
-    def test_user_message_passed_verbatim(self, patched_client):
+    def test_user_message_is_first_content_block(self, patched_client):
+        # The skill-routing prefix (when present) must be the FIRST content
+        # block the agent sees, matching the Phase 2 A/B eval structure.
         client, mock_sdk = patched_client
 
         _drain(client.send_message_streaming(
@@ -103,20 +105,19 @@ class TestUserMessageContent:
 
         events = _events_send_args(mock_sdk)["events"]
         assert events[0]["type"] == "user.message"
-        text = events[0]["content"][0]["text"]
-        # Date prefix prepended by client; user message body is preserved.
-        assert "Use the vcp-screener skill for this request: AAPL" in text
+        first_block_text = events[0]["content"][0]["text"]
+        assert first_block_text == "Use the vcp-screener skill for this request: AAPL"
 
-    def test_no_extra_content_blocks(self, patched_client):
-        # The client should send exactly ONE content block (date + user msg).
-        # Skill-routing prefixes are baked into user_message upstream by
-        # normalize_command, not added as separate blocks here.
+    def test_date_context_is_second_block(self, patched_client):
         client, mock_sdk = patched_client
 
         _drain(client.send_message_streaming("plain message"))
 
         events = _events_send_args(mock_sdk)["events"]
-        assert len(events[0]["content"]) == 1
+        blocks = events[0]["content"]
+        assert len(blocks) == 2
+        assert blocks[0]["text"] == "plain message"
+        assert blocks[1]["text"].startswith("[Current:")
 
 
 class TestResetSession:
