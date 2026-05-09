@@ -158,15 +158,20 @@ docker compose up --build
 
 ## Testing
 
-Each skill includes unit tests. Run per-skill to avoid cross-skill test name collisions:
+The full test suite is configured in `pyproject.toml` and can run from the
+repository root:
 
 ```bash
-# Install dev dependencies (includes pytest)
-pip install -r requirements-dev.txt
+# Install dev dependencies
+pip install -e ".[dev]"
 
-# Run tests for a specific skill
-python -m pytest skills/vcp-screener/scripts/tests/ -v
-python -m pytest skills/ftd-detector/scripts/tests/ -v
+# Run all configured tests
+python -m pytest -q
+
+# Run lint, format, and type checks
+ruff check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+ruff format --check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+mypy common config agent
 ```
 
 ## CI/CD
@@ -175,7 +180,7 @@ GitHub Actions runs 3 jobs on every PR and push to `main`:
 
 | Job | Tools | What it checks |
 |-----|-------|----------------|
-| **Lint** | ruff, codespell | Code style, formatting, spelling |
+| **Lint** | ruff, mypy, codespell | Code style, formatting, core type checks, spelling |
 | **Test** | pytest, coverage | Per-skill unit tests with coverage report |
 | **Security** | bandit, detect-secrets | SAST scan + secret leak detection |
 
@@ -188,7 +193,7 @@ pip install -e ".[dev]"
 # Set up pre-commit hooks (lint on commit, test on push)
 pre-commit install && pre-commit install --hook-type pre-push
 
-# Run all skill tests
+# Run the full local test suite
 bash scripts/run_all_tests.sh
 ```
 

@@ -155,15 +155,19 @@ docker compose up --build
 
 ## Testing
 
-各スキルにはユニットテストが含まれています。スキル間のテスト名衝突を避けるため、スキル単位で実行してください:
+テスト対象は `pyproject.toml` に集約されています。リポジトリルートから全体を実行できます:
 
 ```bash
-# dev 依存のインストール (pytest 含む)
-pip install -r requirements-dev.txt
+# dev 依存のインストール
+pip install -e ".[dev]"
 
-# スキル単位でテスト実行
-python -m pytest skills/vcp-screener/scripts/tests/ -v
-python -m pytest skills/ftd-detector/scripts/tests/ -v
+# 全テスト
+python -m pytest -q
+
+# lint / format / 型チェック
+ruff check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+ruff format --check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+mypy common config agent
 ```
 
 ## Configuration
