@@ -117,7 +117,7 @@ class TestFMPEndpointFallback:
     """Tests for _fmp_request stable -> v3 fallback."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_stable_success_uses_stable_url_format(self, mock_requests):
@@ -182,7 +182,7 @@ class TestFMPQuoteFetch:
     """Tests for _fetch_fmp_quotes."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_batch_returns_mapped_dict(self, mock_requests):
@@ -293,7 +293,7 @@ class TestFMPHistoricalFetch:
     """Tests for _fetch_fmp_historical."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_multi_symbol_parses_historicalStockList(self, mock_requests):
@@ -432,7 +432,7 @@ class TestBatchStockMetricsFMP:
     """Tests for FMP-based batch_stock_metrics internal path."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_pe_from_quote(self, mock_requests):
@@ -538,7 +538,7 @@ class TestETFVolumeRatioFMP:
     """Tests for FMP-based ETF volume ratio calculation."""
 
     def _make_scanner(self):
-        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        return ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
     @patch("etf_scanner._requests_lib")
     def test_20d_60d_from_historical(self, mock_requests):
@@ -600,7 +600,7 @@ class TestBatchETFVolumeRatios:
     @patch("etf_scanner._requests_lib")
     def test_batch_returns_all_etfs(self, mock_requests):
         """Batch fetches volume ratios for multiple ETFs."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         hist_data = [{"volume": 1_000_000} for _ in range(60)]
         mock_resp = MagicMock()
@@ -629,7 +629,7 @@ class TestSymbolLevelFallback:
     @patch("etf_scanner.yf")
     def test_partial_fmp_success_fills_missing_from_yfinance(self, mock_yf, mock_requests):
         """Partial FMP success -> missing symbols fall back to yfinance."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         # FMP: only AAPL succeeds
         quote_resp = MagicMock()
@@ -681,7 +681,7 @@ class TestSymbolLevelFallback:
     @patch("etf_scanner._requests_lib")
     def test_all_fmp_success_no_yfinance_calls(self, mock_requests):
         """When FMP succeeds for all symbols, yfinance is not called."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         quote_resp = MagicMock()
         quote_resp.status_code = 200
@@ -708,7 +708,7 @@ class TestSymbolLevelFallback:
     @patch("etf_scanner.yf")
     def test_all_fmp_fail_falls_back_entirely(self, mock_yf):
         """Without requests library, falls back entirely to yfinance."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         mock_df = pd.DataFrame(
             {
@@ -735,7 +735,7 @@ class TestBackendStats:
     """Tests for backend_stats() tracking."""
 
     def test_initial_stats_all_zero(self):
-        scanner = ETFScanner(fmp_api_key="test_key")
+        scanner = ETFScanner(fmp_api_key="test_key")  # pragma: allowlist secret
         stats = scanner.backend_stats()
         assert stats["fmp_calls"] == 0
         assert stats["fmp_failures"] == 0
@@ -745,7 +745,7 @@ class TestBackendStats:
     @patch("etf_scanner._requests_lib")
     def test_stats_after_fmp_success(self, mock_requests):
         """FMP calls are counted after successful requests."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -764,7 +764,7 @@ class TestBackendStats:
     @patch("etf_scanner.yf")
     def test_stats_after_yfinance_fallback(self, mock_yf, mock_requests):
         """yf_calls and yf_fallbacks are counted after fallback."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         # FMP fails for everything
         fail_resp = MagicMock()
@@ -796,7 +796,7 @@ class TestBackendStats:
     @patch("etf_scanner.yf")
     def test_yf_calls_and_yf_fallbacks_increment(self, mock_yf, mock_requests):
         """yf_fallbacks increments when partial FMP data triggers fallback."""
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         # FMP: AAPL succeeds, MSFT missing
         quote_resp = MagicMock()

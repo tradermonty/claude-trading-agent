@@ -409,8 +409,8 @@ class TestE2EFMPPath:
         """ETFScanner constructed with fmp_api_key stores it."""
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key_123")
-        assert scanner._fmp_api_key == "test_key_123"
+        scanner = ETFScanner(fmp_api_key="test_key_123")  # pragma: allowlist secret
+        assert scanner._fmp_api_key == "test_key_123"  # pragma: allowlist secret
         scanner_no_key = ETFScanner()
         assert scanner_no_key._fmp_api_key is None
 
@@ -420,7 +420,7 @@ class TestE2EFMPPath:
 
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)  # pragma: allowlist secret
 
         with patch("etf_scanner._requests_lib") as mock_req:
             quote_resp = MagicMock()
@@ -455,7 +455,7 @@ class TestE2EFMPPath:
         """
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key")
+        scanner = ETFScanner(fmp_api_key="test_key")  # pragma: allowlist secret
         metadata = {"data_sources": {}}
 
         # Simulate what theme_detector does

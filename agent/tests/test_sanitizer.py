@@ -16,8 +16,8 @@ def _reload_sanitizer():
     with mock.patch.dict(
         os.environ,
         {
-            "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",
-            "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",
+            "FMP_API_KEY": "test_fmp_key_32chars_abcdefghij",  # pragma: allowlist secret
+            "ANTHROPIC_API_KEY": "sk-ant-api03-testkey1234567890abcdef",  # pragma: allowlist secret
         },
     ):
         importlib.reload(agent.sanitizer)
@@ -37,7 +37,7 @@ def test_redacts_anthropic_key():
 def test_redacts_known_fmp_key():
     from agent.sanitizer import sanitize
 
-    text = "export FMP_API_KEY='test_fmp_key_32chars_abcdefghij'"
+    text = "export FMP_API_KEY='test_fmp_key_32chars_abcdefghij'"  # pragma: allowlist secret
     result = sanitize(text)
     assert "test_fmp_key_32chars_abcdefghij" not in result
     assert "[REDACTED_API_KEY]" in result
