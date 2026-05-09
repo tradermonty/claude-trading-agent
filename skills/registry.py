@@ -3,12 +3,25 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 SKILLS_DIR = Path(__file__).resolve().parent
+
+
+def _refs_disabled_skills() -> set[str]:
+    """Parse SKILLS_REFS_DISABLED env into a set of skill names.
+
+    Strips whitespace and drops empty entries so values like
+    " market-breadth-analyzer ,vcp-screener" parse cleanly. Phase 2 evaluation
+    aid: per-skill suppression of the (large) reference_context blob to
+    measure whether Managed Skills auto-load alone is sufficient.
+    """
+    raw = os.getenv("SKILLS_REFS_DISABLED", "")
+    return {x.strip() for x in raw.split(",") if x.strip()}
 
 
 @dataclass
@@ -223,12 +236,19 @@ ALL_SKILLS: list[SkillDefinition] = [
 
 def detect_skill(user_message: str) -> SkillMatch | None:
     """Check if a user message triggers any registered skill."""
+    refs_disabled = _refs_disabled_skills()
+
     for skill in ALL_SKILLS:
         headline = skill.matches(user_message)
         if headline is not None:
             logger.info("Skill matched: %s (headline: %s)", skill.name, headline[:80])
             instructions = skill.load_skill_instructions()
-            references = skill.load_references()
+
+            if skill.name in refs_disabled:
+                logger.info("References disabled for %s via SKILLS_REFS_DISABLED", skill.name)
+                references = ""
+            else:
+                references = skill.load_references()
 
             system_supplement = (
                 f"## Active Skill: {skill.name}\n\n"
