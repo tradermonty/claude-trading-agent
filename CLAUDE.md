@@ -31,7 +31,12 @@ streamlit run app.py           # Web UI
 python scripts/query_agent.py  # CLI
 
 # Test
-python -m pytest skills/ -v
+python -m pytest -q
+
+# Lint / type check
+ruff check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+ruff format --check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
+mypy common config agent
 ```
 
 ## Key Files
@@ -90,8 +95,6 @@ skills/<skill-name>/
 2. **datetime.now() in skill scripts vs. user timezone**: The system prompt instructs the agent to use the `[Current: ...]` header for the user's local date, but skill scripts internally use `datetime.now()` which reflects the container's clock (UTC in cloud). This can cause 1-day date mismatches for US users.
 
 3. **Managed Agents API is in beta**: Identifiers like `agent_toolset_20260401` and `betas=["skills-2025-10-02"]` may change.
-
-4. **Test collection conflicts**: Running `pytest skills/ -v` from the project root may fail due to same-named test files across skills (e.g., multiple `test_report_generator.py`). Run tests per-skill instead: `pytest skills/vcp-screener/scripts/tests/ -v`.
 
 ## Conventions
 

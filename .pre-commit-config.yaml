@@ -47,9 +47,16 @@ repos:
         types: [text]
         exclude: '\.git/|\.venv/|\.secrets\.baseline$|/tests?/|CLAUDE\.md$|check_no_absolute_paths\.py$'
 
-      # Pre-push: run all skill tests before pushing
+      - id: mypy-core
+        name: Mypy core typecheck
+        entry: mypy common config agent
+        language: system
+        pass_filenames: false
+        files: '^(common|config|agent)/'
+
+      # Pre-push: run the same pytest testpaths used by local development
       - id: pytest-pre-push
-        name: Run all skill tests
+        name: Run full pytest suite
         entry: bash scripts/run_all_tests.sh
         language: system
         stages: [pre-push]
