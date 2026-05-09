@@ -90,10 +90,20 @@ def assert_no_legacy_env() -> None:
         sys.exit(2)
 
 
-def collect_response(client: ManagedAgentClient, prompt: str) -> str:
-    """Send a prompt through the same path as scripts/query_agent.py."""
+def collect_response(
+    client: ManagedAgentClient, prompt: str
+) -> tuple[str, bool]:
+    """Send a prompt through the same path as scripts/query_agent.py.
+
+    Returns (response_text, had_error). ``had_error`` is True if the stream
+    yielded any ``error``-type chunk. ManagedAgentClient.send_message_streaming
+    catches internal exceptions and emits them as error chunks rather than
+    re-raising, so an exception-only error counter would miss them and
+    produce false "DONE with 0 errors" runs.
+    """
     skill_match = detect_skill(prompt)
     parts: list[str] = []
+    had_error = False
     for chunk in client.send_message_streaming(
         prompt,
         system_supplement=skill_match.system_supplement if skill_match else "",
@@ -104,10 +114,11 @@ def collect_response(client: ManagedAgentClient, prompt: str) -> str:
         if ctype == "text":
             parts.append(sanitize(chunk.get("content", "")))
         elif ctype == "error":
+            had_error = True
             parts.append(f"\n[ERROR: {chunk.get('content', '')}]\n")
         elif ctype == "done":
             break
-    return "".join(parts)
+    return "".join(parts), had_error
 
 
 def run_arm(
@@ -140,7 +151,9 @@ def run_arm(
             print(f"  [{arm}] prompt {p_idx + 1}/{len(prompts)} trial {t + 1}/{trials}",
                   file=sys.stderr)
             try:
-                resp = collect_response(client, prompt)
+                resp, had_error = collect_response(client, prompt)
+                if had_error:
+                    errors += 1
             except Exception as e:
                 errors += 1
                 resp = f"[CLIENT ERROR: {e}]"
