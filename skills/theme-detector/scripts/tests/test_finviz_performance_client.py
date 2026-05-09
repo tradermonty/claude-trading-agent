@@ -1,6 +1,161 @@
-"""Tests for finviz_performance_client outlier winsorization."""
+"""Tests for finviz_performance_client parsing, fetch wrappers, and outlier handling."""
 
-from finviz_performance_client import HARD_CAPS, _apply_hard_caps, cap_outlier_performances
+import math
+
+import finviz_performance_client
+from finviz_performance_client import (
+    HARD_CAPS,
+    _apply_hard_caps,
+    _dataframe_to_dicts,
+    _parse_perf_value,
+    cap_outlier_performances,
+    get_industry_performance,
+    get_sector_performance,
+)
+
+
+class _Row(dict):
+    @property
+    def index(self):
+        return self.keys()
+
+
+class _DataFrame:
+    def __init__(self, rows):
+        self._rows = [_Row(row) for row in rows]
+
+    def iterrows(self):
+        return enumerate(self._rows)
+
+
+class _Performance:
+    def __init__(self, *, error=None):
+        self.error = error
+        self.calls = []
+
+    def screener_view(self, group):
+        self.calls.append(group)
+        if self.error:
+            raise self.error
+        return _DataFrame(
+            [
+                {
+                    "Name": f"{group} A",
+                    "Perf Week": "12.5%",
+                    "Perf Month": "0.05",
+                    "Perf Quart": None,
+                    "Perf Half": 0.2,
+                    "Perf Year": "bad",
+                    "Perf YTD": "",
+                }
+            ]
+        )
+
+
+class TestParsePerformanceValues:
+    def test_parse_perf_value_accepts_supported_shapes(self):
+        assert _parse_perf_value(0.12) == 0.12
+        assert _parse_perf_value(2) == 2.0
+        assert _parse_perf_value("0.12%") == 0.12
+        assert _parse_perf_value("12.5%") == 0.125
+        assert _parse_perf_value(" 0.05 ") == 0.05
+
+    def test_parse_perf_value_rejects_empty_invalid_and_nan(self):
+        assert _parse_perf_value(None) is None
+        assert _parse_perf_value("") is None
+        assert _parse_perf_value("n/a") is None
+        assert _parse_perf_value(math.nan) is None
+
+
+class TestDataFrameConversion:
+    def test_dataframe_to_dicts_maps_columns_and_skips_blank_names(self):
+        df = _DataFrame(
+            [
+                {
+                    "Name": " Technology ",
+                    "Perf Week": "12.5%",
+                    "Perf Month": "0.05",
+                    "Perf Quart": "bad",
+                },
+                {"Name": "   ", "Perf Week": "1.0"},
+            ]
+        )
+
+        rows = _dataframe_to_dicts(df)
+
+        assert rows == [
+            {
+                "name": "Technology",
+                "perf_1w": 0.125,
+                "perf_1m": 0.05,
+                "perf_3m": None,
+                "perf_6m": None,
+                "perf_1y": None,
+                "perf_ytd": None,
+            }
+        ]
+
+
+class TestFetchPerformance:
+    def test_sector_performance_returns_empty_when_dependency_missing(self, monkeypatch, capsys):
+        monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", False)
+
+        assert get_sector_performance() == []
+        assert "finvizfinance not installed" in capsys.readouterr().err
+
+    def test_industry_performance_returns_empty_when_dependency_missing(self, monkeypatch, capsys):
+        monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", False)
+
+        assert get_industry_performance() == []
+        assert "finvizfinance not installed" in capsys.readouterr().err
+
+    def test_sector_performance_fetches_sector_group(self, monkeypatch):
+        perf = _Performance()
+
+        class FVPerf:
+            @staticmethod
+            def Performance():
+                return perf
+
+        monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", True)
+        monkeypatch.setattr(finviz_performance_client, "fvperf", FVPerf)
+
+        rows = get_sector_performance()
+
+        assert perf.calls == ["Sector"]
+        assert rows[0]["name"] == "Sector A"
+        assert rows[0]["perf_1w"] == 0.125
+
+    def test_industry_performance_fetches_industry_group(self, monkeypatch):
+        perf = _Performance()
+
+        class FVPerf:
+            @staticmethod
+            def Performance():
+                return perf
+
+        monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", True)
+        monkeypatch.setattr(finviz_performance_client, "fvperf", FVPerf)
+
+        rows = get_industry_performance()
+
+        assert perf.calls == ["Industry"]
+        assert rows[0]["name"] == "Industry A"
+
+    def test_fetch_errors_return_empty_lists(self, monkeypatch, capsys):
+        class FVPerf:
+            @staticmethod
+            def Performance():
+                return _Performance(error=RuntimeError("bad response"))
+
+        monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", True)
+        monkeypatch.setattr(finviz_performance_client, "fvperf", FVPerf)
+
+        assert get_sector_performance() == []
+        assert get_industry_performance() == []
+        err = capsys.readouterr().err
+        assert "Failed to fetch sector performance" in err
+        assert "Failed to fetch industry performance" in err
 
 
 class TestCapOutlierPerformances:
