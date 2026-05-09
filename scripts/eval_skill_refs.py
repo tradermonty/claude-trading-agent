@@ -34,15 +34,60 @@ from agent.sanitizer import sanitize
 from skills.registry import detect_skill
 
 
+# All default prompts MUST match the target skill via detect_skill(); otherwise
+# the eval would silently degrade into a no-skill-context comparison and
+# produce useless A/B numbers. validate_prompts() enforces this at startup.
 DEFAULT_PROMPTS = {
     "market-breadth-analyzer": [
         "/breadth",
-        "Is the rally broad-based right now?",
-        "What is the current market breadth score?",
-        "市場幅の健全性を評価して",
-        "How healthy is participation across S&P 500?",
+        "What is the current market breadth score?",  # "market breadth" kw
+        "Show me the advance decline data",            # "advance decline" kw
+        "市場幅の健全性を評価して",                       # "市場幅" kw
+        "ブレッス指標を確認して",                          # "ブレッス" kw
     ],
 }
+
+
+def validate_prompts(prompts: list[str], expected_skill: str) -> None:
+    """Fail fast if any prompt does not route to the expected skill.
+
+    Without this gate, prompts that miss the trigger silently produce
+    an A/B comparison of "no skill context" vs "no skill context" — i.e.,
+    no signal — and skew the Phase 3 references-removal decision.
+    """
+    bad: list[tuple[int, str, str | None]] = []
+    for i, p in enumerate(prompts):
+        match = detect_skill(p)
+        actual = match.skill_name if match else None
+        if actual != expected_skill:
+            bad.append((i, p, actual))
+    if bad:
+        print(
+            f"ERROR: {len(bad)} prompt(s) do not route to '{expected_skill}':",
+            file=sys.stderr,
+        )
+        for i, p, actual in bad:
+            print(f"  [{i}] matched={actual!r}: {p!r}", file=sys.stderr)
+        sys.exit(2)
+
+
+def assert_no_legacy_env() -> None:
+    """Refuse to run if LEGACY_SKILL_SESSION is set in the environment.
+
+    The eval is meaningful only against the Phase 1 default path
+    (session reuse + skill_hint). If LEGACY_SKILL_SESSION=1 is left
+    over from a rollback test, every trial would fork a new
+    skill-specific agent and the A/B numbers would conflate two
+    independent variables (refs on/off + path A/legacy).
+    """
+    val = os.getenv("LEGACY_SKILL_SESSION", "").strip().lower()
+    if val in {"1", "true", "yes"}:
+        print(
+            "ERROR: LEGACY_SKILL_SESSION is set; eval requires the default "
+            "Phase 1 path. Unset it before running this script.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 
 def collect_response(client: ManagedAgentClient, prompt: str) -> str:
@@ -71,8 +116,12 @@ def run_arm(
     prompts: list[str],
     trials: int,
     out_dir: Path,
-) -> None:
+) -> int:
     """Run one arm of the A/B and write each (prompt, trial) to disk.
+
+    Returns the number of trials that raised a client/API exception. Errors
+    are still written to disk for inspection but the count is bubbled up so
+    main() can fail the run if any sample is unusable.
 
     Resets the client between trials so prompt cache state does not leak
     across runs (prompt cache hits would otherwise skew the comparison).
@@ -83,6 +132,7 @@ def run_arm(
         os.environ.pop("SKILLS_REFS_DISABLED", None)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    errors = 0
 
     for p_idx, prompt in enumerate(prompts):
         for t in range(trials):
@@ -92,12 +142,15 @@ def run_arm(
             try:
                 resp = collect_response(client, prompt)
             except Exception as e:
+                errors += 1
                 resp = f"[CLIENT ERROR: {e}]"
             fname = f"p{p_idx:02d}_t{t}.md"
             (out_dir / fname).write_text(
                 f"# Arm {arm}\n\n## Prompt\n\n{prompt}\n\n## Response\n\n{resp}\n",
                 encoding="utf-8",
             )
+
+    return errors
 
 
 def main() -> None:
@@ -116,6 +169,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    assert_no_legacy_env()
+
     if args.prompts_file:
         prompts = [
             line.strip() for line in args.prompts_file.read_text().splitlines()
@@ -131,6 +186,10 @@ def main() -> None:
             )
             sys.exit(2)
 
+    # Fail fast: every prompt must route to the target skill, otherwise
+    # the comparison degrades to no-skill vs no-skill (no signal).
+    validate_prompts(prompts, args.skill)
+
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     base = PROJECT_ROOT / "reports" / "eval" / args.skill / timestamp
 
@@ -139,14 +198,30 @@ def main() -> None:
     print(f"  prompts: {len(prompts)}, trials: {args.trials}", file=sys.stderr)
 
     print("\n--- Arm A (refs ENABLED, status quo) ---", file=sys.stderr)
-    run_arm("A", args.skill, prompts, args.trials, base / "A_refs_on")
+    errors_a = run_arm("A", args.skill, prompts, args.trials, base / "A_refs_on")
 
     print("\n--- Arm B (refs DISABLED via SKILLS_REFS_DISABLED) ---", file=sys.stderr)
-    run_arm("B", args.skill, prompts, args.trials, base / "B_refs_off")
+    errors_b = run_arm("B", args.skill, prompts, args.trials, base / "B_refs_off")
 
-    print(f"\nDONE. Review files under {base}", file=sys.stderr)
+    total_errors = errors_a + errors_b
+    print(f"\nFiles under {base}", file=sys.stderr)
     print(
-        "Recommended manual scoring: 10-point rubric per response covering "
+        f"  Arm A errors: {errors_a}, Arm B errors: {errors_b}, "
+        f"total: {total_errors}",
+        file=sys.stderr,
+    )
+
+    if total_errors > 0:
+        print(
+            "ERROR: one or more trials raised exceptions; do NOT use these "
+            "samples as a Phase 3 gate input. Inspect the [CLIENT ERROR: ...] "
+            "files and re-run after fixing.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print(
+        "DONE. Recommended manual scoring: 10-point rubric per response covering "
         "(1) score completeness, (2) component coverage, (3) actionable takeaway. "
         "Compare A vs B mean per prompt; if B >= 90% of A, references can be "
         "dropped in Phase 3.",
