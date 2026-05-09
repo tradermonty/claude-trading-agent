@@ -39,9 +39,11 @@ def stream_response(client: ManagedAgentClient, message: str) -> str:
 
     system_supplement = ""
     reference_context = ""
+    skill_hint = ""
     if skill_match:
         system_supplement = skill_match.system_supplement
         reference_context = skill_match.reference_context
+        skill_hint = skill_match.skill_hint
         print(f"[Skill: {skill_match.skill_name}]", file=sys.stderr)
 
     result_parts: list[str] = []
@@ -50,6 +52,7 @@ def stream_response(client: ManagedAgentClient, message: str) -> str:
         message,
         system_supplement=system_supplement,
         reference_context=reference_context,
+        skill_hint=skill_hint,
     ):
         ctype = chunk.get("type")
         content = chunk.get("content", "")

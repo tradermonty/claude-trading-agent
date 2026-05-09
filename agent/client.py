@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterator
 from typing import Literal, NotRequired, TypedDict
 
@@ -125,20 +126,35 @@ class ManagedAgentClient:
         *,
         system_supplement: str = "",
         reference_context: str = "",
+        skill_hint: str = "",
     ) -> Iterator[StreamChunk]:
         """Send a user message and yield StreamChunk events.
 
-        When a skill is triggered, system_supplement and reference_context
-        are used to create a skill-specific agent and a fresh session.
+        Default path: reuses the existing session and prepends ``skill_hint``
+        (e.g. "Use the vcp-screener skill: AAPL") so Managed Skills can
+        auto-load. Cheaper, preserves conversational context.
+
+        Legacy path (LEGACY_SKILL_SESSION=1): when ``system_supplement`` is
+        provided, creates a fresh skill-specific agent + session. Loses
+        follow-up context but mirrors the pre-Phase-1 behavior verbatim.
         """
-        if system_supplement:
-            # Create a skill-specific agent with enriched system prompt
+        use_legacy = (
+            os.getenv("LEGACY_SKILL_SESSION", "").strip().lower()
+            in {"1", "true", "yes"}
+        )
+
+        if system_supplement and use_legacy:
+            # Legacy path: skill-specific agent + fresh session.
             session_id = self._create_skill_session(system_supplement)
         else:
             session_id = self.ensure_session()
 
-        # Build message content blocks with local datetime context
+        # Build message content blocks with local datetime context.
         content_blocks: list[dict[str, str]] = []
+        if skill_hint and not use_legacy:
+            # Default path: lean hint that nudges Managed Skills to auto-load
+            # the right skill while keeping the existing session.
+            content_blocks.append({"type": "text", "text": skill_hint})
         if reference_context:
             content_blocks.append({"type": "text", "text": reference_context})
 
