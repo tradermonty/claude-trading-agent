@@ -93,7 +93,7 @@ Session = Agent + Environment の実行インスタンス
 
 ### なぜ2つのスキル機構があるのか？
 
-本プロジェクトは **API Skills**（サンドボックスへのファイル配信）と **ローカル registry**（プロンプト注入）を併用しています。API Skills はスクリプトをクラウド環境に配置し、ローカル registry はシステムプロンプトを拡張してエージェントに分析手法を指示します。詳細は `CLAUDE.md` を参照してください。
+本プロジェクトは **API Skills**（サンドボックスへのファイル配信）と **ローカル registry**（slash コマンド検出 + skill hint 付与）を併用しています。API Skills はスクリプトをクラウド環境に配置し、ローカル registry は `/vcp-screener` 等のコマンドを検出してユーザーメッセージに 1 行のヒント (`Use the {skill_name} skill ...`) を付加することで、Managed Skills の description ベース auto-load を確実にトリガーします。Phase 1 以降の default 経路では skill 発火時も既存セッションを維持するため、フォローアップ質問が文脈を失いません。`LEGACY_SKILL_SESSION=1` を設定すると Phase 1 以前の挙動（skill 発火ごとに新 agent/session 作成）に戻せます。詳細は `CLAUDE.md` を参照してください。
 
 ## Prerequisites
 

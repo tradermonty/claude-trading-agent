@@ -61,7 +61,7 @@ This project uses **two complementary skill mechanisms** that fire simultaneousl
 
 **Why not just one?** API Skills deliver files but don't control the system prompt. The local registry controls the prompt but can't deliver files to the sandbox. Both are needed for the agent to know *what* to do (prompt) and *how* to do it (scripts).
 
-**Known consequence**: Skill invocations create a new agent + session each time, so follow-up questions after a skill run lose the skill context (the conversation falls back to the default session). This is a deliberate simplicity trade-off documented in Known Limitations below.
+**Default path (Phase 1+)**: Skill invocations now reuse the existing session. The local registry produces a lean `skill_hint` (`Use the {skill_name} skill for this request: ...`) prepended to the user message, and Managed Skills' description-based auto-load picks the right skill. Follow-up questions retain context. Set `LEGACY_SKILL_SESSION=1` to restore the pre-Phase-1 behavior of creating a fresh skill-specific agent/session per invocation (rollback path; loses follow-up context).
 
 ## Skill Structure
 
@@ -82,7 +82,7 @@ skills/<skill-name>/
 
 2. **FMP_API_KEY embedded in system prompt**: `_build_system_prompt()` in `agent/client.py` writes the API key as plain text into the prompt. Should migrate to Environment Variables / Secrets when available.
 
-3. **Skill follow-up context is lost**: After a skill invocation, the conversation returns to the default session. The agent won't remember the skill results for follow-up questions like "tell me more about the 2nd stock."
+3. ~~**Skill follow-up context is lost**~~: **Resolved in Phase 1**. The default path now reuses the session across skill invocations, so "tell me more about the 2nd stock" works as expected. The legacy behavior is still reachable via `LEGACY_SKILL_SESSION=1` for rollback verification.
 
 4. **datetime.now() in skill scripts vs. user timezone**: The system prompt instructs the agent to use the `[Current: ...]` header for the user's local date, but skill scripts internally use `datetime.now()` which reflects the container's clock (UTC in cloud). This can cause 1-day date mismatches for US users.
 
