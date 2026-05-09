@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Query the Trade Assistant Managed Agent from the command line.
 
-Uses the same agent/environment registered by bootstrap.py. Supports skill
-commands (/vcp-screener, /ftd-detector, etc.) via the same detect_skill()
-logic as the Streamlit UI.
+Uses the same agent/environment registered by bootstrap.py. Slash commands
+(/vcp-screener, /ftd-detector, etc.) are routed via
+``skills.registry.normalize_command``, which rewrites the message to a
+short "Use the X skill for this request: ..." hint that lets Managed
+Skills auto-load the right skill.
 
 Usage:
     python scripts/query_agent.py "今週のマーケット見通しを教えて"
@@ -30,30 +32,18 @@ from anthropic import Anthropic
 
 from agent.client import ManagedAgentClient
 from agent.sanitizer import sanitize
-from skills.registry import detect_skill
+from skills.registry import normalize_command
 
 
 def stream_response(client: ManagedAgentClient, message: str) -> str:
     """Send a message and stream the sanitized response to stdout."""
-    skill_match = detect_skill(message)
-
-    system_supplement = ""
-    reference_context = ""
-    skill_hint = ""
-    if skill_match:
-        system_supplement = skill_match.system_supplement
-        reference_context = skill_match.reference_context
-        skill_hint = skill_match.skill_hint
-        print(f"[Skill: {skill_match.skill_name}]", file=sys.stderr)
+    send_text, matched_skill = normalize_command(message)
+    if matched_skill:
+        print(f"[Skill: {matched_skill}]", file=sys.stderr)
 
     result_parts: list[str] = []
 
-    for chunk in client.send_message_streaming(
-        message,
-        system_supplement=system_supplement,
-        reference_context=reference_context,
-        skill_hint=skill_hint,
-    ):
+    for chunk in client.send_message_streaming(send_text):
         ctype = chunk.get("type")
         content = chunk.get("content", "")
 

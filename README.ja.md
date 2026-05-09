@@ -87,13 +87,9 @@ Session = Agent + Environment の実行インスタンス
 
 `ManagedAgentClient` クラスの `send_message_streaming()` がこのパターンの実装です。
 
-### 3. `skills/registry.py` — スキルルーティングパターン
+### 3. `skills/registry.py` — slash コマンドルーティング
 
-ユーザー入力からスキルを検出し、エージェントのシステムプロンプトを動的に拡張するパターンです。`detect_skill()` がコマンド (`/vcp-screener`) やキーワード (`VCPブレイクアウト`) にマッチすると、対応する `SKILL.md` と `references/` を読み込んでプロンプトに注入します。
-
-### なぜ2つのスキル機構があるのか？
-
-本プロジェクトは **API Skills**（サンドボックスへのファイル配信）と **ローカル registry**（slash コマンド検出 + skill hint 付与）を併用しています。API Skills はスクリプトをクラウド環境に配置し、ローカル registry は `/vcp-screener` 等のコマンドを検出してユーザーメッセージに 1 行のヒント (`Use the {skill_name} skill ...`) を付加することで、Managed Skills の description ベース auto-load を確実にトリガーします。Phase 1 以降の default 経路では skill 発火時も既存セッションを維持するため、フォローアップ質問が文脈を失いません。`LEGACY_SKILL_SESSION=1` を設定すると Phase 1 以前の挙動（skill 発火ごとに新 agent/session 作成）に戻せます。詳細は `CLAUDE.md` を参照してください。
+`normalize_command(user_message)` はユーザー入力から slash コマンド（`/vcp-screener` 等）と trigger キーワードを検出し、メッセージを 1 行のヒント (`Use the vcp-screener skill for this request: ...`) に書き換えます。これにより Managed Skills の description ベース auto-load が確実に正しい skill を選びます。書き換えた文字列は通常の user message として既存セッションに送信され、元の入力はチャット履歴に保存されます。詳細は `CLAUDE.md` を参照してください。
 
 ## Prerequisites
 
