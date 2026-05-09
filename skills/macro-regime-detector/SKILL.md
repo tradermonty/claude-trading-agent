@@ -1,6 +1,6 @@
 ---
 name: macro-regime-detector
-description: Detect structural macro regime transitions (1-2 year horizon) using cross-asset ratio analysis. Analyze RSP/SPY concentration, yield curve, credit conditions, size factor, equity-bond relationship, and sector rotation to identify regime shifts between Concentration, Broadening, Contraction, Inflationary, and Transitional states. Run when user asks about macro regime, market regime change, structural rotation, or long-term market positioning.
+description: Detect structural macro regime transitions (1-2 year horizon) using cross-asset ratio analysis. Analyze RSP/SPY concentration, yield curve, credit conditions, size factor, equity-bond relationship, and sector rotation to identify regime shifts between Concentration, Broadening, Contraction, Inflationary, and Transitional states. TRIGGER when user types /macro-regime, asks about マクロレジーム, レジーム検出, マクロ環境, macro regime, regime detection, market structural change, or long-term market positioning over 1-2 years. SKIP for short-term tactical signals (use ftd-detector or market-breadth-analyzer instead).
 ---
 
 # Macro Regime Detector

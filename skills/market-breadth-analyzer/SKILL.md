@@ -1,6 +1,6 @@
 ---
 name: market-breadth-analyzer
-description: Quantifies market breadth health using TraderMonty's public CSV data. Generates a 0-100 composite score across 6 components (100 = healthy). No API key required. Use when user asks about market breadth, participation rate, advance-decline health, whether the rally is broad-based, or general market health assessment.
+description: Quantifies market breadth health using TraderMonty's public CSV data. Generates a 0-100 composite score across 6 components (100 = healthy). No API key required. TRIGGER when user types /breadth, asks about 市場幅, ブレッス, 参加率, market breadth, participation rate, advance-decline health, whether the rally is broad-based, or general market health assessment. SKIP for individual stock analysis or for top-detection (use ibd-distribution-day-monitor for distribution patterns).
 ---
 
 # Market Breadth Analyzer Skill

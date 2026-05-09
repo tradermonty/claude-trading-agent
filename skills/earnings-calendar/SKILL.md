@@ -1,6 +1,6 @@
 ---
 name: earnings-calendar
-description: This skill retrieves upcoming earnings announcements for US stocks using the Financial Modeling Prep (FMP) API. Use this when the user requests earnings calendar data, wants to know which companies are reporting earnings in the upcoming week, or needs a weekly earnings review. The skill focuses on mid-cap and above companies (over $2B market cap) that have significant market impact, organizing the data by date and timing in a clean markdown table format. Supports multiple environments (CLI, Desktop, Web) with flexible API key management.
+description: Retrieves upcoming earnings announcements for US stocks using the FMP API. Focuses on mid-cap and above companies (over $2B market cap) that have significant market impact, organizing data by date and timing in a clean markdown table. TRIGGER when user types /earnings, asks about 決算カレンダー, 決算発表, earnings calendar, earnings report, upcoming earnings, weekly earnings review, or pre-earnings planning. SKIP for individual company earnings analysis (this is calendar-only, not deep-dive).
 ---
 
 # Earnings Calendar

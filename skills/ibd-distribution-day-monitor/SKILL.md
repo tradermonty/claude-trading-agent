@@ -1,6 +1,6 @@
 ---
 name: ibd-distribution-day-monitor
-description: Detect IBD-style Distribution Days for QQQ/SPY (close down at least 0.2% on higher volume), track 25-session expiration and 5% invalidation, count d5/d15/d25 clusters, classify market risk (NORMAL/CAUTION/HIGH/SEVERE), and emit TQQQ/QQQ exposure recommendations. Use after market close, before TQQQ exposure changes, or as input to FTD/market-state frameworks. Does not execute trades.
+description: Detect IBD-style Distribution Days for QQQ/SPY (close down at least 0.2% on higher volume), track 25-session expiration and 5% invalidation, count d5/d15/d25 clusters, classify market risk (NORMAL/CAUTION/HIGH/SEVERE), and emit TQQQ/QQQ exposure recommendations. TRIGGER when user types /ibd-dd, asks about distribution day, ディストリビューションデイ, ディストリビューション・デイ, IBD distribution, TQQQ exposure, TQQQエクスポージャー, market top risk assessment, or daily post-close market risk monitoring. SKIP for bottom-confirmation (use ftd-detector) or breadth analysis (use market-breadth-analyzer). Does not execute trades.
 ---
 
 # IBD Distribution Day Monitor

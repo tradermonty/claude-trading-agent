@@ -2,7 +2,7 @@
 
 **A sample project demonstrating how to build a full-featured AI agent using [Claude Managed Agents](https://docs.anthropic.com/en/docs/agents-and-tools/managed-agents)** — Anthropic's cloud-hosted agent runtime with built-in code execution, web access, and file management.
 
-This reference implementation pairs a Streamlit chat UI with 10 specialized trading analysis skills to show how to wire up Skills, Agents, Environments, and Sessions into a working application. Use it as a starting point for your own Managed Agents project — the trading domain is just one example.
+This reference implementation pairs a Streamlit chat UI with 11 specialized trading analysis skills to show how to wire up Skills, Agents, Environments, and Sessions into a working application. Use it as a starting point for your own Managed Agents project — the trading domain is just one example.
 
 [日本語版 README はこちら](README.ja.md)
 
@@ -34,6 +34,7 @@ This reference implementation pairs a Streamlit chat UI with 10 specialized trad
 | `/earnings` | Earnings Calendar | Fetch upcoming earnings announcements |
 | `/econ-calendar` | Economic Calendar | Fetch FOMC, CPI, jobs report schedules |
 | `/breakout-plan` | Breakout Trade Planner | Generate entry/risk trade plans from VCP candidates |
+| `/ibd-dd` | IBD Distribution Day Monitor | Track IBD-style distribution days for QQQ/SPY and emit TQQQ exposure recommendations |
 
 ## Architecture
 
@@ -53,7 +54,8 @@ Streamlit UI (app.py)
        ├── market-breadth-analyzer/
        ├── earnings-calendar/
        ├── economic-calendar-fetcher/
-       └── breakout-trade-planner/
+       ├── breakout-trade-planner/
+       └── ibd-distribution-day-monitor/
 ```
 
 Each skill contains `SKILL.md` (agent instructions), `references/` (methodology docs), and `scripts/` (Python code + tests).
@@ -125,7 +127,7 @@ python bootstrap.py
 
 `bootstrap.py` automatically:
 
-1. Registers 10 skills with the Skills API
+1. Registers 11 skills with the Skills API
 2. Creates an Agent (with skills attached + system prompt)
 3. Creates an Environment (cloud sandbox)
 4. Writes all generated IDs back to `.env`

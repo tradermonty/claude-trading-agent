@@ -35,8 +35,11 @@ class SkillDefinition:
         """Return the headline/argument if the message triggers this skill, else None."""
         msg = user_message.strip()
 
-        # Explicit command: /scenario-analyzer "headline..." or /ftd-detector
-        if msg.startswith(self.command):
+        # Explicit command: exact match or command followed by whitespace/argument.
+        # Prevents partial matches like "/breadthfoo" matching "/breadth".
+        if msg == self.command:
+            return self.name
+        if msg.startswith(self.command + " ") or msg.startswith(self.command + "\t"):
             arg = msg[len(self.command):].strip().strip('"').strip("'").strip()
             return arg if arg else self.name
 
