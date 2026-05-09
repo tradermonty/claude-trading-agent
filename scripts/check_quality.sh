@@ -4,6 +4,9 @@
 set -euo pipefail
 
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="python"
+fi
 PYTHON_DIR="$(dirname "$PYTHON_BIN")"
 if [ -x "$PYTHON_DIR/codespell" ]; then
   CODESPELL_BIN="${CODESPELL_BIN:-$PYTHON_DIR/codespell}"
