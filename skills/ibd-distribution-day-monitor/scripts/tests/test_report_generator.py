@@ -18,7 +18,7 @@ class TestRedaction:
         assert out["Fmp_Api_Key"] == REDACTED
 
     def test_redacts_token_case_insensitive(self):
-        out = _redact({"Access_Token": "abc", "REFRESH_TOKEN": "def"})
+        out = _redact({"Access_Token": object(), "REFRESH_TOKEN": object()})
         assert out["Access_Token"] == REDACTED
         assert out["REFRESH_TOKEN"] == REDACTED
 

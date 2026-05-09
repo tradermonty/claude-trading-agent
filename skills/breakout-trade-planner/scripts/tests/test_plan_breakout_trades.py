@@ -29,7 +29,7 @@ def _make_args(**overrides) -> argparse.Namespace:
         "max_chase_pct": 2.0,
         "pivot_buffer_pct": 0.1,
         "current_exposure_json": None,
-        "output_dir": "/tmp/test_plans",
+        "output_dir": "test_plans",
     }
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
