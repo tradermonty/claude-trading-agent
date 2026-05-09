@@ -21,13 +21,13 @@ jobs:
         run: pip install "ruff==0.9.6" codespell
 
       - name: Ruff check
-        run: ruff check skills/ agent/ config/ scripts/ app.py bootstrap.py
+        run: ruff check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
 
       - name: Ruff format check
-        run: ruff format --check skills/ agent/ config/ scripts/ app.py bootstrap.py
+        run: ruff format --check common/ skills/ agent/ config/ scripts/ app.py bootstrap.py
 
       - name: Codespell
-        run: codespell --toml pyproject.toml skills/ agent/ config/ scripts/
+        run: codespell --toml pyproject.toml common/ skills/ agent/ config/ scripts/
 
   test:
     name: Test
@@ -137,7 +137,7 @@ jobs:
         run: pip install "bandit[toml]>=1.9.0" "detect-secrets>=1.5.0"
 
       - name: Bandit SAST scan
-        run: bandit -c pyproject.toml -r skills/ agent/ config/ --exclude "*/tests/*"
+        run: bandit -c pyproject.toml -r common/ skills/ agent/ config/ --exclude "*/tests/*"
 
       - name: Detect secrets check
         run: |

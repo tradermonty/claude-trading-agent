@@ -22,42 +22,72 @@ except ImportError:
     print("ERROR: requests library not found. Install with: pip install requests", file=sys.stderr)
     sys.exit(1)
 
+try:
+    from common.fmp_fallback import (
+        FMP_FALLBACK_ENDPOINTS,
+        normalize_historical_response,
+        quote_response_matches,
+    )
+except ImportError:
+    # Keep the skill script self-contained when uploaded/executed without the
+    # repository-level common/ package.
+    def _stable_quote_url(base, symbols_str, params):
+        params["symbol"] = symbols_str
+        return base, params
 
-# --- FMP endpoint fallback: stable (new users) -> v3 (legacy users) ---
+    def _v3_quote_url(base, symbols_str, params):
+        return f"{base}/{symbols_str}", params
 
+    def _stable_historical_url(base, symbols_str, params):
+        params["symbol"] = symbols_str
+        return base, params
 
-def _stable_quote_url(base, symbols_str, params):
-    """stable/quote?symbol=^GSPC"""
-    params["symbol"] = symbols_str
-    return base, params
+    def _v3_historical_url(base, symbols_str, params):
+        return f"{base}/{symbols_str}", params
 
+    FMP_FALLBACK_ENDPOINTS = {
+        "quote": [
+            ("https://financialmodelingprep.com/stable/quote", _stable_quote_url),
+            ("https://financialmodelingprep.com/api/v3/quote", _v3_quote_url),
+        ],
+        "historical": [
+            (
+                "https://financialmodelingprep.com/stable/historical-price-full",
+                _stable_historical_url,
+            ),
+            (
+                "https://financialmodelingprep.com/api/v3/historical-price-full",
+                _v3_historical_url,
+            ),
+        ],
+    }
 
-def _v3_quote_url(base, symbols_str, params):
-    """api/v3/quote/^GSPC"""
-    return f"{base}/{symbols_str}", params
+    def _symbols_match(returned_symbol, requested_symbol):
+        return returned_symbol.replace("-", ".") == requested_symbol.replace("-", ".")
 
+    def normalize_historical_response(data, symbols_str, *, is_single):
+        if not isinstance(data, dict):
+            return None
+        if "historicalStockList" in data:
+            for entry in data["historicalStockList"]:
+                if _symbols_match(entry.get("symbol", ""), symbols_str):
+                    return {
+                        "symbol": entry.get("symbol"),
+                        "historical": entry.get("historical", []),
+                    }
+            return None
+        if "historical" not in data:
+            return None
+        if is_single and data.get("symbol") and not _symbols_match(data["symbol"], symbols_str):
+            return None
+        return data
 
-def _stable_hist_url(base, symbols_str, params):
-    """stable/historical-price-full?symbol=^GSPC&timeseries=80"""
-    params["symbol"] = symbols_str
-    return base, params
-
-
-def _v3_hist_url(base, symbols_str, params):
-    """api/v3/historical-price-full/^GSPC?timeseries=80"""
-    return f"{base}/{symbols_str}", params
-
-
-_FMP_ENDPOINTS = {
-    "quote": [
-        ("https://financialmodelingprep.com/stable/quote", _stable_quote_url),
-        ("https://financialmodelingprep.com/api/v3/quote", _v3_quote_url),
-    ],
-    "historical": [
-        ("https://financialmodelingprep.com/stable/historical-price-full", _stable_hist_url),
-        ("https://financialmodelingprep.com/api/v3/historical-price-full", _v3_hist_url),
-    ],
-}
+    def quote_response_matches(data, symbols_str, *, is_single):
+        if not isinstance(data, list) or len(data) == 0:
+            return False
+        if is_single and not any(_symbols_match(q.get("symbol", ""), symbols_str) for q in data):
+            return False
+        return True
 
 
 class FMPClient:
@@ -131,7 +161,7 @@ class FMPClient:
     def _request_with_fallback(self, endpoint_key, symbols_str, extra_params=None):
         """Try stable endpoint first, fall back to v3. Circuit breaker skips failing endpoints."""
         params = dict(extra_params) if extra_params else {}
-        endpoints = _FMP_ENDPOINTS[endpoint_key]
+        endpoints = FMP_FALLBACK_ENDPOINTS[endpoint_key]
         is_single = "," not in symbols_str
 
         for i, (base_url, url_builder) in enumerate(endpoints):
@@ -148,33 +178,14 @@ class FMPClient:
                 continue
 
             if endpoint_key == "quote":
-                if not isinstance(data, list) or len(data) == 0:
-                    continue
-                # Single-symbol: verify returned symbol matches request
-                if is_single and not any(
-                    q.get("symbol", "").replace("-", ".") == symbols_str.replace("-", ".")
-                    for q in data
-                ):
+                if not quote_response_matches(data, symbols_str, is_single=is_single):
                     continue
 
             if endpoint_key == "historical":
-                if not isinstance(data, dict):
+                normalized = normalize_historical_response(data, symbols_str, is_single=is_single)
+                if normalized is None:
                     continue
-                if "historicalStockList" in data:
-                    norm = symbols_str.replace("-", ".")
-                    for entry in data["historicalStockList"]:
-                        if entry.get("symbol", "").replace("-", ".") == norm:
-                            return {
-                                "symbol": entry.get("symbol"),
-                                "historical": entry.get("historical", []),
-                            }
-                    continue
-                elif "historical" not in data:
-                    continue
-                # Single-symbol: verify returned symbol matches request
-                elif is_single and data.get("symbol"):
-                    if data["symbol"].replace("-", ".") != symbols_str.replace("-", "."):
-                        continue
+                data = normalized
 
             self._endpoint_failures[base_url] = 0  # Reset on success
             return data
