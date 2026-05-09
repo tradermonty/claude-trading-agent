@@ -1089,8 +1089,9 @@ class TestProperties:
 
     def test_active_sources_public_mode_with_fmp(self):
         sel = RepresentativeStockSelector(
-            finviz_mode="public", fmp_api_key="key"
-        )  # pragma: allowlist secret
+            finviz_mode="public",
+            fmp_api_key="key",  # pragma: allowlist secret
+        )
         assert sel._active_sources == ["public", "fmp"]
 
     def test_active_sources_elite_mode(self):
