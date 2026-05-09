@@ -47,10 +47,10 @@ repos:
         types: [text]
         exclude: '\.git/|\.venv/|\.secrets\.baseline$|/tests?/|CLAUDE\.md$|check_no_absolute_paths\.py$'
 
-      # Pre-push: run all skill tests before pushing
-      - id: pytest-pre-push
-        name: Run all skill tests
-        entry: bash scripts/run_all_tests.sh
+      # Pre-push: run the same production-quality gate used by CI.
+      - id: quality-pre-push
+        name: Run production quality gate
+        entry: scripts/check_quality.sh
         language: system
         stages: [pre-push]
         pass_filenames: false

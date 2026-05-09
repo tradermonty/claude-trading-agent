@@ -158,26 +158,26 @@ docker compose up --build
 
 ## Testing
 
-Each skill includes unit tests. Run per-skill to avoid cross-skill test name collisions:
+Each skill includes unit tests. Before opening a PR, run the same production quality gate
+used by CI:
 
 ```bash
-# Install dev dependencies (includes pytest)
-pip install -r requirements-dev.txt
+# Install dev dependencies
+pip install -e ".[dev]"
 
-# Run tests for a specific skill
-python -m pytest skills/vcp-screener/scripts/tests/ -v
-python -m pytest skills/ftd-detector/scripts/tests/ -v
+# Ruff / format / Bandit / pytest + coverage / compileall
+scripts/check_quality.sh
 ```
 
 ## CI/CD
 
-GitHub Actions runs 3 jobs on every PR and push to `main`:
+GitHub Actions runs the same production quality gate used locally on every PR and push
+to `main`.
 
 | Job | Tools | What it checks |
 |-----|-------|----------------|
-| **Lint** | ruff, codespell | Code style, formatting, spelling |
-| **Test** | pytest, coverage | Per-skill unit tests with coverage report |
-| **Security** | bandit, detect-secrets | SAST scan + secret leak detection |
+| **Quality Gate** | ruff, ruff format, bandit, pytest, coverage, compileall | Linting, formatting, security scan, full test suite, coverage threshold, syntax/import validity |
+| **Secret Scan** | detect-secrets | Fails when a new secret appears outside `.secrets.baseline` |
 
 ### Local development
 
@@ -188,8 +188,8 @@ pip install -e ".[dev]"
 # Set up pre-commit hooks (lint on commit, test on push)
 pre-commit install && pre-commit install --hook-type pre-push
 
-# Run all skill tests
-bash scripts/run_all_tests.sh
+# Run the full production quality gate
+scripts/check_quality.sh
 ```
 
 ## Configuration

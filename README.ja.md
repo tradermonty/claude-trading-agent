@@ -155,15 +155,17 @@ docker compose up --build
 
 ## Testing
 
-各スキルにはユニットテストが含まれています。スキル間のテスト名衝突を避けるため、スキル単位で実行してください:
+各スキルにはユニットテストが含まれています。PR 前には、CI と同じ本番品質ゲートをローカルで実行してください。
 
 ```bash
-# dev 依存のインストール (pytest 含む)
-pip install -r requirements-dev.txt
+# dev 依存のインストール
+pip install -e ".[dev]"
 
-# スキル単位でテスト実行
-python -m pytest skills/vcp-screener/scripts/tests/ -v
-python -m pytest skills/ftd-detector/scripts/tests/ -v
+# pre-commit / pre-push hook の設定
+pre-commit install && pre-commit install --hook-type pre-push
+
+# Ruff / format / Bandit / pytest + coverage / compileall を一括実行
+scripts/check_quality.sh
 ```
 
 ## Configuration
