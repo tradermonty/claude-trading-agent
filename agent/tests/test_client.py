@@ -118,6 +118,32 @@ class TestUserMessageContent:
         assert blocks[1]["text"].startswith("[Current:")
 
 
+class TestSystemPromptApiKeyInjection:
+    """FMP key prompt exposure is configurable for security-sensitive deployments."""
+
+    def test_build_system_prompt_includes_fmp_key_by_default(self, monkeypatch):
+        import agent.client as client_module
+
+        monkeypatch.setattr(client_module, "FMP_API_KEY", "fmp_test_key_123")
+        monkeypatch.setattr(client_module, "INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT", True)
+
+        prompt = client_module._build_system_prompt("base")
+
+        assert "fmp_test_key_123" in prompt
+        assert "Available API Keys" in prompt
+
+    def test_build_system_prompt_can_omit_raw_fmp_key(self, monkeypatch):
+        import agent.client as client_module
+
+        monkeypatch.setattr(client_module, "FMP_API_KEY", "fmp_test_key_123")
+        monkeypatch.setattr(client_module, "INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT", False)
+
+        prompt = client_module._build_system_prompt("base")
+
+        assert prompt == "base"
+        assert "fmp_test_key_123" not in prompt
+
+
 class TestResetSession:
     """reset_session() must drop the session id and force a new create on next send."""
 

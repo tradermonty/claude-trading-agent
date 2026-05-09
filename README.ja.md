@@ -178,6 +178,7 @@ mypy common config agent
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API キー |
 | `FMP_API_KEY` | No | Financial Modeling Prep API キー |
+| `INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT` | No | `1` は従来の cloud script 互換。`0` にすると Managed Agent system prompt へ FMP キーを直接埋め込みません |
 | `CLAUDE_MODEL` | No | 使用モデル (default: `claude-sonnet-4-6`) |
 | `MANAGED_AGENT_ID` | No | 既存 Agent ID (`bootstrap.py` が自動設定) |
 | `MANAGED_ENVIRONMENT_ID` | No | 既存 Environment ID (`bootstrap.py` が自動設定) |

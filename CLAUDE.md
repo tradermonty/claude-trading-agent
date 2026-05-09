@@ -90,7 +90,7 @@ skills/<skill-name>/
 
 ## Known Limitations
 
-1. **FMP_API_KEY embedded in system prompt**: `_build_system_prompt()` in `agent/client.py` writes the API key as plain text into the prompt. Should migrate to Environment Variables / Secrets when available.
+1. **FMP_API_KEY prompt exposure is opt-out**: `_build_system_prompt()` can still write the FMP key into the prompt for cloud script compatibility. Set `INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT=0` to avoid raw-key prompt exposure. A proper Managed Environment secret store should replace this when available.
 
 2. **datetime.now() in skill scripts vs. user timezone**: The system prompt instructs the agent to use the `[Current: ...]` header for the user's local date, but skill scripts internally use `datetime.now()` which reflects the container's clock (UTC in cloud). This can cause 1-day date mismatches for US users.
 

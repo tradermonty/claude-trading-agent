@@ -29,6 +29,15 @@ def _parse_positive_int(raw: str, *, default: int, minimum: int = 1) -> int:
     return value if value >= minimum else default
 
 
+def _parse_bool(raw: str, *, default: bool = False) -> bool:
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 UiLocale = Literal["en", "ja"]
 LogFormat = Literal["text", "json"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -146,8 +155,11 @@ IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID = os.getenv(
     "IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID", ""
 ).strip()
 
-# --- External API Keys (injected into agent sessions) ---
+# --- External API Keys ---
 FMP_API_KEY = os.getenv("FMP_API_KEY", "").strip()
+INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT = _parse_bool(
+    os.getenv("INJECT_FMP_API_KEY_IN_SYSTEM_PROMPT", "1"), default=True
+)
 
 # --- App settings ---
 APP_TITLE = os.getenv("APP_TITLE", "Trade Assistant").strip()
