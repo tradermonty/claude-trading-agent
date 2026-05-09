@@ -101,17 +101,14 @@ jobs:
           --cov-report=term-missing
           --cov-append
 
-      # Known failures: theme-detector, canslim-screener
-      - name: Test theme-detector (known failures)
-        continue-on-error: true
+      - name: Test theme-detector
         run: >
           python -m pytest skills/theme-detector/scripts/tests/ -v
           --cov=skills/theme-detector/scripts
           --cov-report=term-missing
           --cov-append
 
-      - name: Test canslim-screener (known failures)
-        continue-on-error: true
+      - name: Test canslim-screener
         run: >
           python -m pytest skills/canslim-screener/scripts/tests/ -v
           --cov=skills/canslim-screener/scripts

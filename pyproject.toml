@@ -65,9 +65,9 @@ testpaths = [
     "skills/ftd-detector/scripts/tests",
     "skills/macro-regime-detector/scripts/tests",
     "skills/market-breadth-analyzer/scripts/tests",
+    "skills/theme-detector/scripts/tests",
     "skills/vcp-screener/scripts/tests",
-    # theme-detector excluded: pre-existing failures
-    # canslim-screener excluded: requires finvizfinance at runtime
+    "skills/canslim-screener/scripts/tests",
 ]
 
 # --- Bandit ---
