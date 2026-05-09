@@ -5,12 +5,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import tempfile
 
+import plan_breakout_trades
 import pytest
 from plan_breakout_trades import (
+    generate_markdown,
     generate_plans,
+    load_exposure,
     load_input,
+    main,
     process_candidate,
     validate_result,
 )
@@ -117,6 +122,32 @@ class TestLoadInput:
             assert len(loaded["results"]) == 1
             os.unlink(f.name)
 
+    def test_missing_results_raises(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"schema_version": "1.0"}, f)
+            f.flush()
+            with pytest.raises(ValueError, match="results"):
+                load_input(f.name)
+            os.unlink(f.name)
+
+
+class TestLoadExposure:
+    def test_missing_path_returns_defaults(self, tmp_path):
+        assert load_exposure(None) == {"sector_exposure": {}, "open_risk_pct": 0.0}
+        assert load_exposure(str(tmp_path / "does-not-exist-exposure.json")) == {
+            "sector_exposure": {},
+            "open_risk_pct": 0.0,
+        }
+
+    def test_existing_path_loads_json(self, tmp_path):
+        path = tmp_path / "exposure.json"
+        path.write_text(json.dumps({"sector_exposure": {"Technology": 12.5}, "open_risk_pct": 1.2}))
+
+        assert load_exposure(str(path)) == {
+            "sector_exposure": {"Technology": 12.5},
+            "open_risk_pct": 1.2,
+        }
+
 
 class TestValidateResult:
     def test_valid_result(self):
@@ -137,6 +168,25 @@ class TestValidateResult:
         result["vcp_pattern"]["contractions"] = []
         is_valid, warnings = validate_result(result)
         assert not is_valid
+
+    def test_missing_last_contraction_low_is_invalid(self):
+        result = _make_vcp_result()
+        del result["vcp_pattern"]["contractions"][-1]["low_price"]
+
+        is_valid, warnings = validate_result(result)
+
+        assert not is_valid
+        assert any("low_price" in warning for warning in warnings)
+
+    def test_breakout_missing_extra_fields_warns_but_remains_valid(self):
+        result = _make_vcp_result(state="Breakout")
+        result["volume_pattern"].pop("breakout_volume_detected")
+        result["pivot_proximity"].pop("distance_from_pivot_pct")
+
+        is_valid, warnings = validate_result(result)
+
+        assert is_valid
+        assert len([warning for warning in warnings if "Breakout field" in warning]) == 2
 
 
 class TestMinerviniGate:
@@ -214,6 +264,25 @@ class TestMinerviniGate:
             result, args, 0.0, {}, {"sector_exposure": {}, "open_risk_pct": 0}
         )
         assert classified["classification"] == "rejected"
+
+    def test_breakout_missing_distance_rejected(self):
+        result = _make_vcp_result(
+            score=85.0,
+            state="Breakout",
+            valid_vcp=True,
+            breakout_volume=True,
+            distance_from_pivot=None,
+            price=101.0,
+        )
+        result["pivot_proximity"].pop("distance_from_pivot_pct")
+        args = _make_args()
+
+        classified = process_candidate(
+            result, args, 0.0, {}, {"sector_exposure": {}, "open_risk_pct": 0}
+        )
+
+        assert classified["classification"] == "rejected"
+        assert "missing distance_from_pivot_pct" in classified["data"]["reason"]
 
     def test_breakout_price_above_worst_rejected(self):
         result = _make_vcp_result(
@@ -308,3 +377,107 @@ class TestGeneratePlans:
         meta = plans["input_metadata"]
         assert meta["candidates_in_file"] == 1
         assert meta["input_scope"] == "top_n_only"
+
+    def test_uses_exposure_file(self, tmp_path):
+        exposure_path = tmp_path / "exposure.json"
+        exposure_path.write_text(
+            json.dumps({"sector_exposure": {"Technology": 4.0}, "open_risk_pct": 1.0})
+        )
+        data = _make_input_data([_make_vcp_result()])
+        args = _make_args(current_exposure_json=str(exposure_path))
+
+        plans = generate_plans(data, args)
+
+        assert plans["parameters"]["current_exposure"] == {
+            "sector_exposure": {"Technology": 4.0},
+            "open_risk_pct": 1.0,
+        }
+
+
+class TestGenerateMarkdown:
+    def test_markdown_includes_all_sections(self):
+        data = _make_input_data(
+            [
+                _make_vcp_result(symbol="ACT", score=85.0),
+                _make_vcp_result(
+                    symbol="REV",
+                    score=85.0,
+                    state="Breakout",
+                    breakout_volume=True,
+                    distance_from_pivot=1.0,
+                    price=101.0,
+                ),
+                _make_vcp_result(symbol="WAT", score=65.0),
+            ]
+        )
+        plans = generate_plans(data, _make_args())
+
+        markdown = generate_markdown(plans)
+
+        assert "# Breakout Trade Plan" in markdown
+        assert "## Actionable Orders" in markdown
+        assert "## Revalidation" in markdown
+        assert "## Watchlist" in markdown
+        assert "ACT" in markdown
+        assert "REV" in markdown
+        assert "WAT" in markdown
+
+    def test_markdown_without_optional_sections(self):
+        plans = generate_plans(_make_input_data([]), _make_args())
+
+        markdown = generate_markdown(plans)
+
+        assert "## Summary" in markdown
+        assert "## Actionable Orders" not in markdown
+        assert "## Revalidation" not in markdown
+        assert "## Watchlist" not in markdown
+
+
+class TestMainCli:
+    def test_main_writes_json_and_markdown_outputs(self, monkeypatch, tmp_path, capsys):
+        input_path = tmp_path / "vcp.json"
+        output_dir = tmp_path / "plans"
+        input_path.write_text(json.dumps(_make_input_data([_make_vcp_result()])))
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "plan_breakout_trades.py",
+                "--input",
+                str(input_path),
+                "--account-size",
+                "100000",
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+
+        main()
+
+        json_files = list(output_dir.glob("breakout_trade_plan_*.json"))
+        md_files = list(output_dir.glob("breakout_trade_plan_*.md"))
+        assert len(json_files) == 1
+        assert len(md_files) == 1
+        assert json.loads(json_files[0].read_text())["summary"]["actionable_count"] == 1
+        assert "# Breakout Trade Plan" in md_files[0].read_text()
+        assert "Actionable: 1" in capsys.readouterr().out
+
+    def test_main_propagates_load_input_errors(self, monkeypatch, tmp_path):
+        input_path = tmp_path / "bad.json"
+        input_path.write_text(json.dumps({"schema_version": "1.0"}))
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "plan_breakout_trades.py",
+                "--input",
+                str(input_path),
+                "--account-size",
+                "100000",
+                "--output-dir",
+                str(tmp_path / "plans"),
+            ],
+        )
+
+        with pytest.raises(ValueError, match="results"):
+            plan_breakout_trades.main()
