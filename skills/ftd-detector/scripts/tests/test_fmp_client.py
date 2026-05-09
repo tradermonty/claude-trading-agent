@@ -293,9 +293,9 @@ class TestCallerRegression:
             import ftd_detector
 
             with (
-                patch.object(FMPClient, "get_historical_prices", return_value=None),
+                patch.object(ftd_detector.FMPClient, "get_historical_prices", return_value=None),
                 patch.object(
-                    FMPClient,
+                    ftd_detector.FMPClient,
                     "get_quote",
                     return_value=[{"symbol": "^GSPC", "price": 5000.0}],
                 ),
@@ -347,8 +347,8 @@ class TestCallerRegression:
                 return None
 
             with (
-                patch.object(FMPClient, "get_historical_prices", side_effect=mock_hist),
-                patch.object(FMPClient, "get_quote", return_value=None),
+                patch.object(ftd_detector.FMPClient, "get_historical_prices", side_effect=mock_hist),
+                patch.object(ftd_detector.FMPClient, "get_quote", return_value=None),
                 patch.object(ftd_detector, "generate_json_report"),
                 patch.object(ftd_detector, "generate_markdown_report"),
             ):
