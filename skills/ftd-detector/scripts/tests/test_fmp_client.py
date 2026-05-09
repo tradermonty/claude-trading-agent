@@ -356,3 +356,154 @@ class TestCallerRegression:
             ):
                 # Should NOT raise SystemExit — quote failure is non-fatal
                 ftd_detector.main()
+
+
+# =========================================================================
+# Direct client helpers and wrapper behavior
+# =========================================================================
+
+
+class TestRateLimitedGet:
+    def test_init_requires_api_key(self, monkeypatch):
+        monkeypatch.delenv("FMP" + "_API_KEY", raising=False)
+
+        with pytest.raises(ValueError):
+            FMPClient()
+
+    def test_rate_limited_get_success_tracks_api_calls(self):
+        client = _make_client()
+        client.retry_count = 1
+        client.session.get = MagicMock(return_value=_mock_response(200, {"ok": True}))
+
+        assert client._rate_limited_get("https://example.test") == {"ok": True}
+        assert client.retry_count == 0
+        assert client.api_calls_made == 1
+
+    def test_rate_limited_get_retries_429_then_succeeds(self):
+        client = _make_client()
+        client.session.get = MagicMock(
+            side_effect=[
+                _mock_response(429, None),
+                _mock_response(200, {"ok": True}),
+            ]
+        )
+
+        with patch("fmp_client.time.sleep") as sleep:
+            assert client._rate_limited_get("https://example.test") == {"ok": True}
+
+        sleep.assert_any_call(60)
+        assert client.session.get.call_count == 2
+        assert client.api_calls_made == 2
+
+    def test_rate_limited_get_sets_circuit_on_repeated_429(self, capsys):
+        client = _make_client()
+        client.max_retries = 0
+        client.session.get = MagicMock(return_value=_mock_response(429, None))
+
+        assert client._rate_limited_get("https://example.test") is None
+        assert client.rate_limit_reached is True
+        assert "Daily API rate limit reached" in capsys.readouterr().err
+        assert client._rate_limited_get("https://example.test") is None
+        assert client.session.get.call_count == 1
+
+    def test_rate_limited_get_non_200_respects_quiet_flag(self, capsys):
+        client = _make_client()
+        client.session.get = MagicMock(return_value=_mock_response(500, None))
+
+        assert client._rate_limited_get("https://example.test", quiet=True) is None
+        assert capsys.readouterr().err == ""
+
+        assert client._rate_limited_get("https://example.test", quiet=False) is None
+        assert "API request failed: 500" in capsys.readouterr().err
+
+    def test_rate_limited_get_request_exception(self, capsys):
+        import requests
+
+        client = _make_client()
+        client.session.get = MagicMock(side_effect=requests.exceptions.ConnectionError("down"))
+
+        assert client._rate_limited_get("https://example.test") is None
+        assert "Request exception" in capsys.readouterr().err
+
+
+class TestBatchAndMathHelpers:
+    def test_quote_and_historical_successes_are_cached(self):
+        client = _make_client()
+        client._request_with_fallback = MagicMock(
+            side_effect=[
+                [{"symbol": "SPY"}],
+                {"symbol": "SPY", "historical": [{"close": 500}]},
+            ]
+        )
+
+        assert client.get_quote("SPY") == [{"symbol": "SPY"}]
+        assert client.get_quote("SPY") == [{"symbol": "SPY"}]
+        assert client.get_historical_prices("SPY", days=20) == {
+            "symbol": "SPY",
+            "historical": [{"close": 500}],
+        }
+        assert client.get_historical_prices("SPY", days=20) == {
+            "symbol": "SPY",
+            "historical": [{"close": 500}],
+        }
+        assert client._request_with_fallback.call_count == 2
+
+    def test_failed_quote_and_historical_results_are_not_cached(self):
+        client = _make_client()
+        client._request_with_fallback = MagicMock(return_value=None)
+
+        assert client.get_quote("SPY") is None
+        assert client.get_quote("SPY") is None
+        assert client.get_historical_prices("SPY", days=20) is None
+        assert client.get_historical_prices("SPY", days=20) is None
+        assert client._request_with_fallback.call_count == 4
+
+    def test_get_batch_quotes_batches_and_skips_failures(self):
+        client = _make_client()
+
+        def fake_get_quote(symbols):
+            if symbols == "A,B,C,D,E":
+                return [{"symbol": "A"}, {"symbol": "E"}]
+            return None
+
+        client.get_quote = MagicMock(side_effect=fake_get_quote)
+
+        assert client.get_batch_quotes(["A", "B", "C", "D", "E", "F"]) == {
+            "A": {"symbol": "A"},
+            "E": {"symbol": "E"},
+        }
+        assert client.get_quote.call_args_list[0].args == ("A,B,C,D,E",)
+        assert client.get_quote.call_args_list[1].args == ("F",)
+
+    def test_get_batch_historical_collects_available_symbols(self):
+        client = _make_client()
+
+        def fake_get_historical(symbol, days):
+            if symbol == "SPY":
+                return {"historical": [{"close": 500}]}
+            return None
+
+        client.get_historical_prices = MagicMock(side_effect=fake_get_historical)
+
+        assert client.get_batch_historical(["SPY", "QQQ"], days=10) == {"SPY": [{"close": 500}]}
+
+    def test_calculate_ema_and_sma_short_and_full_series(self):
+        client = _make_client()
+        prices = [10.0, 9.0, 8.0, 7.0, 6.0]
+
+        assert client.calculate_ema([10.0, 20.0], period=5) == 15.0
+        assert round(client.calculate_ema(prices, period=3), 2) == 9.0
+        assert client.calculate_sma([10.0, 20.0], period=5) == 15.0
+        assert client.calculate_sma(prices, period=3) == 9.0
+
+    def test_get_api_stats(self):
+        client = _make_client()
+        client.cache["x"] = {"ok": True}
+        client.api_calls_made = 3
+        client.rate_limit_reached = True
+
+        assert client.get_api_stats() == {
+            "cache_entries": 1,
+            "api_calls_made": 3,
+            "rate_limit_reached": True,
+        }
