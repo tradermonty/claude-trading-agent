@@ -8,9 +8,11 @@ Trend Template criteria, volume patterns, pivot proximity, and scoring.
 
 import json
 import os
+import sys
 import tempfile
 
 import pytest
+import screen_vcp
 from calculators.pivot_proximity_calculator import calculate_pivot_proximity
 from calculators.relative_strength_calculator import calculate_relative_strength
 from calculators.trend_template_calculator import calculate_trend_template
@@ -3351,3 +3353,213 @@ class TestEarlyPostBreakoutCap:
             breakout_volume=False,
         )
         assert result["state"] == "Early-post-breakout"
+
+
+# ---------------------------------------------------------------------------
+# Main orchestrator smoke paths
+# ---------------------------------------------------------------------------
+
+
+class _FakeVCPClient:
+    def __init__(self, api_key=None):
+        self.api_key = api_key
+
+    def get_sp500_constituents(self):
+        return [{"symbol": "AAPL", "sector": "Technology", "name": "Apple Inc."}]
+
+    def get_batch_quotes(self, symbols):
+        return {
+            sym: {
+                "symbol": sym,
+                "name": f"{sym} Co",
+                "sector": "Technology",
+                "price": 100.0,
+                "yearHigh": 105.0,
+                "yearLow": 60.0,
+                "avgVolume": 1_000_000,
+                "marketCap": 1_000_000_000,
+            }
+            for sym in symbols
+        }
+
+    def get_historical_prices(self, symbol, days=365):
+        return {"historical": _make_prices(80, start=100.0, daily_change=0.001)}
+
+    def get_api_stats(self):
+        return {"api_calls_made": 3, "cache_entries": 1}
+
+
+class TestMainOrchestrator:
+    def test_main_exits_when_client_init_fails(self, monkeypatch, capsys):
+        def raise_value_error(api_key=None):
+            raise ValueError("missing key")
+
+        monkeypatch.setattr(screen_vcp, "FMPClient", raise_value_error)
+        monkeypatch.setattr(sys, "argv", ["screen_vcp.py", "--universe", "AAPL"])
+
+        with pytest.raises(SystemExit) as exc:
+            screen_vcp.main()
+
+        assert exc.value.code == 1
+        assert "missing key" in capsys.readouterr().err
+
+    def test_main_exits_when_sp500_constituents_unavailable(self, monkeypatch, capsys):
+        class EmptyConstituentClient(_FakeVCPClient):
+            def get_sp500_constituents(self):
+                return []
+
+        monkeypatch.setattr(screen_vcp, "FMPClient", EmptyConstituentClient)
+        monkeypatch.setattr(sys, "argv", ["screen_vcp.py"])
+
+        with pytest.raises(SystemExit) as exc:
+            screen_vcp.main()
+
+        assert exc.value.code == 1
+        assert "Unable to fetch S&P 500 constituents" in capsys.readouterr().err
+
+    def test_main_generates_empty_reports_when_no_trend_candidates(self, monkeypatch, tmp_path):
+        calls = {}
+
+        monkeypatch.setattr(screen_vcp, "FMPClient", _FakeVCPClient)
+        monkeypatch.setattr(screen_vcp, "calculate_relative_strength", lambda *args, **kwargs: {})
+        monkeypatch.setattr(
+            screen_vcp,
+            "calculate_trend_template",
+            lambda *args, **kwargs: {"raw_score": 50.0},
+        )
+        monkeypatch.setattr(
+            screen_vcp,
+            "generate_json_report",
+            lambda top, metadata, path, all_results=None: calls.setdefault(
+                "json", (top, metadata, path, all_results)
+            ),
+        )
+        monkeypatch.setattr(
+            screen_vcp,
+            "generate_markdown_report",
+            lambda top, metadata, path, all_results=None: calls.setdefault(
+                "md", (top, metadata, path, all_results)
+            ),
+        )
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "screen_vcp.py",
+                "--universe",
+                "AAPL",
+                "--output-dir",
+                str(tmp_path),
+            ],
+        )
+
+        screen_vcp.main()
+
+        assert calls["json"][0] == []
+        assert calls["json"][3] == []
+        assert calls["json"][1]["funnel"]["trend_template_passed"] == 0
+        assert "vcp_screener_" in os.path.basename(calls["md"][2])
+
+    def test_main_success_applies_prebreakout_and_strict_filters(self, monkeypatch, tmp_path):
+        calls = {}
+
+        def fake_analyze(symbol, *args, **kwargs):
+            base = {
+                "symbol": symbol,
+                "composite_score": 90.0 if symbol == "AAPL" else 80.0,
+                "quality_rating": "Textbook VCP",
+                "rating": "Textbook VCP",
+                "rating_description": "ready",
+                "guidance": "watch",
+                "valid_vcp": symbol == "AAPL",
+                "execution_state": "Pre-breakout",
+                "execution_state_reasons": [],
+                "pattern_type": "Textbook VCP",
+                "wide_and_loose": False,
+                "state_cap_applied": False,
+                "cap_reason": None,
+                "sma200_distance_pct": 10.0,
+                "distance_from_pivot_pct": 1.0,
+                "weakest_component": "pivot",
+                "weakest_score": 70.0,
+                "strongest_component": "trend",
+                "strongest_score": 95.0,
+                "trend_template": {"score": 95.0},
+                "vcp_pattern": {"score": 95.0, "pivot_price": 101.0},
+                "volume_pattern": {"score": 90.0, "dry_up_ratio": 0.5},
+                "pivot_proximity": {"score": 90.0, "risk_pct": 5.0},
+                "relative_strength": {"score": 80.0},
+            }
+            return base
+
+        monkeypatch.setattr(screen_vcp, "FMPClient", _FakeVCPClient)
+        monkeypatch.setattr(screen_vcp, "is_stale_price", lambda *args, **kwargs: False)
+        monkeypatch.setattr(screen_vcp, "calculate_relative_strength", lambda *args, **kwargs: {})
+        monkeypatch.setattr(
+            screen_vcp,
+            "calculate_trend_template",
+            lambda *args, **kwargs: {"raw_score": 99.0},
+        )
+        monkeypatch.setattr(screen_vcp, "analyze_stock", fake_analyze)
+        monkeypatch.setattr(
+            screen_vcp,
+            "rank_relative_strength_universe",
+            lambda rs_map: {symbol: {"score": 80.0} for symbol in rs_map},
+        )
+        monkeypatch.setattr(
+            screen_vcp,
+            "calculate_composite_score",
+            lambda **kwargs: {
+                "composite_score": 90.0,
+                "quality_rating": "Textbook VCP",
+                "rating": "Textbook VCP",
+                "rating_description": "ready",
+                "guidance": "watch",
+                "weakest_component": "pivot",
+                "weakest_score": 70.0,
+                "strongest_component": "trend",
+                "strongest_score": 95.0,
+                "state_cap_applied": False,
+                "cap_reason": None,
+            },
+        )
+        monkeypatch.setattr(
+            screen_vcp,
+            "generate_json_report",
+            lambda top, metadata, path, all_results=None: calls.setdefault(
+                "json", (top, metadata, path, all_results)
+            ),
+        )
+        monkeypatch.setattr(
+            screen_vcp,
+            "generate_markdown_report",
+            lambda top, metadata, path, all_results=None: calls.setdefault(
+                "md", (top, metadata, path, all_results)
+            ),
+        )
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "screen_vcp.py",
+                "--universe",
+                "AAPL",
+                "MSFT",
+                "--output-dir",
+                str(tmp_path),
+                "--mode",
+                "prebreakout",
+                "--strict",
+                "--top",
+                "1",
+            ],
+        )
+
+        screen_vcp.main()
+
+        top_results, metadata, _path, all_results = calls["json"]
+        assert [result["symbol"] for result in all_results] == ["AAPL"]
+        assert [result["symbol"] for result in top_results] == ["AAPL"]
+        assert all_results[0]["entry_ready"] is True
+        assert metadata["funnel"]["vcp_candidates"] == 1
+        assert metadata["tuning_params"]["strict"] is True
