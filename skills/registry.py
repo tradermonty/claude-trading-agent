@@ -56,9 +56,11 @@ class SkillDefinition:
             arg = msg[len(self.command):].strip().strip('"').strip("'").strip()
             return arg if arg else self.name
 
+        # Both sides lowercased so uppercase keywords like "FOMC" or
+        # "CPI発表" match natural input regardless of case.
         msg_lower = msg.lower()
         for kw in self.trigger_keywords:
-            if kw in msg_lower:
+            if kw.lower() in msg_lower:
                 return msg
 
         return None

@@ -53,6 +53,13 @@ class TestNormalizeCommandKeyword:
         assert name is None
         assert send == "What's the weather today?"
 
+    def test_uppercase_keyword_matches_case_insensitively(self):
+        # "FOMC" is a registered trigger keyword for the economic-calendar-fetcher.
+        # Natural input "FOMC予定を教えて" should still route there.
+        send, name = normalize_command("FOMC予定を教えて")
+        assert name == "economic-calendar-fetcher"
+        assert "FOMC予定を教えて" in send
+
 
 class TestSkillRegistry:
     """Verify registry integrity (skill count, uniqueness)."""
