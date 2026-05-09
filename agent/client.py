@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from anthropic import Anthropic
 
@@ -45,7 +45,9 @@ class ManagedAgentClient:
     """Manages Managed Agents resources (agent, environment) and streams sessions."""
 
     def __init__(self) -> None:
-        self._client = Anthropic()
+        # Anthropic beta SDK method signatures change quickly; keep the
+        # boundary dynamic while type-checking this wrapper's own contract.
+        self._client: Any = Anthropic()
         self._agent_id: str = AGENT_ID
         self._environment_id: str = ENVIRONMENT_ID
         self._session_id: str | None = None
