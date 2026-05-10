@@ -10,6 +10,7 @@ CALCULATORS_DIR = os.path.join(SCRIPTS_DIR, "calculators")
 sys.path.insert(0, SCRIPTS_DIR)
 sys.path.insert(0, CALCULATORS_DIR)
 
+import institutional_calculator  # noqa: E402
 from earnings_calculator import (  # noqa: E402
     calculate_quarterly_growth,
     detect_earnings_acceleration,
@@ -21,6 +22,11 @@ from growth_calculator import (  # noqa: E402
     check_consistency,
     interpret_growth_score,
     score_annual_growth,
+)
+from institutional_calculator import (  # noqa: E402
+    calculate_institutional_sponsorship,
+    interpret_institutional_sponsorship,
+    score_institutional_sponsorship,
 )
 from leadership_calculator import (  # noqa: E402
     calculate_leadership,
@@ -235,6 +241,119 @@ def test_leadership_success_fallback_errors_and_sector_rank():
     sector = calculate_sector_relative_strength(50, [10, 20, 30, 40])
     assert sector["sector_rank"] == 1
     assert sector["is_sector_leader"] is True
+
+
+def _holders(count: int, *, shares_each: int = 1_000_000, superinvestors: int = 0):
+    holders = [
+        {
+            "holder": f"Institution {i}",
+            "shares": shares_each,
+            "dateReported": "2025-01-01",
+            "change": 0,
+        }
+        for i in range(count)
+    ]
+    names = ["BERKSHIRE HATHAWAY INC", "BAUPOST GROUP LLC", "PERSHING SQUARE CAPITAL"]
+    for i in range(superinvestors):
+        holders[i]["holder"] = names[i]
+    return holders
+
+
+def test_institutional_sponsorship_error_and_fmp_paths():
+    missing = calculate_institutional_sponsorship([])
+    assert missing["score"] == 0
+    assert missing["error"].startswith("No institutional holder data")
+
+    sweet_spot = calculate_institutional_sponsorship(
+        _holders(60, shares_each=500_000),
+        {"sharesOutstanding": 100_000_000},
+        use_finviz_fallback=False,
+    )
+    assert sweet_spot["score"] == 100
+    assert sweet_spot["ownership_pct"] == 30.0
+    assert sweet_spot["data_source"] == "FMP"
+    assert sweet_spot["quality_warning"] is None
+
+    no_profile = calculate_institutional_sponsorship(
+        _holders(60, superinvestors=1),
+        profile=None,
+        use_finviz_fallback=False,
+    )
+    assert no_profile["score"] == 65
+    assert no_profile["ownership_pct"] is None
+    assert no_profile["superinvestor_present"] is True
+    assert "Score reduced by 50%" in no_profile["quality_warning"]
+
+
+def test_institutional_sponsorship_finviz_fallback_success_and_failure(monkeypatch, capsys):
+    class FakeFinvizClient:
+        def __init__(self, rate_limit_seconds):
+            self.rate_limit_seconds = rate_limit_seconds
+
+        def get_institutional_ownership(self, symbol):
+            return {"inst_own_pct": 45.0, "inst_trans_pct": 1.2, "error": None}
+
+    monkeypatch.setattr(institutional_calculator, "FINVIZ_AVAILABLE", True)
+    monkeypatch.setattr(institutional_calculator, "FinvizStockClient", FakeFinvizClient)
+
+    fallback = calculate_institutional_sponsorship(
+        _holders(60),
+        profile={"price": 100.0},
+        symbol="AAPL",
+        use_finviz_fallback=True,
+    )
+
+    assert fallback["score"] == 100
+    assert fallback["ownership_pct"] == 45.0
+    assert fallback["data_source"] == "Finviz"
+    assert "Using Finviz" in fallback["quality_warning"]
+    assert "Using Finviz institutional ownership for AAPL" in capsys.readouterr().err
+
+    class FailingFinvizClient:
+        def __init__(self, rate_limit_seconds):
+            self.rate_limit_seconds = rate_limit_seconds
+
+        def get_institutional_ownership(self, symbol):
+            raise RuntimeError("blocked")
+
+    monkeypatch.setattr(institutional_calculator, "FinvizStockClient", FailingFinvizClient)
+
+    failed = calculate_institutional_sponsorship(
+        _holders(60),
+        profile={"price": 100.0},
+        symbol="MSFT",
+        use_finviz_fallback=True,
+    )
+
+    assert failed["ownership_pct"] is None
+    assert failed["score"] == 50
+    assert "Finviz fallback failed" in failed["quality_warning"]
+    assert "Finviz fallback failed for MSFT" in capsys.readouterr().err
+
+
+def test_institutional_score_and_interpretation_branches():
+    assert score_institutional_sponsorship(40, 30.0, False, None) == 80
+    assert score_institutional_sponsorship(120, 50.0, False, None) == 80
+    assert score_institutional_sponsorship(25, 30.0, False, None) == 60
+    assert score_institutional_sponsorship(80, 85.0, False, None) == 40
+    assert score_institutional_sponsorship(80, 95.0, False, None) == 20
+    assert score_institutional_sponsorship(10, 45.0, False, None) == 50
+    assert score_institutional_sponsorship(160, None, True, "missing") == 35
+    assert score_institutional_sponsorship(80, 45.0, True, None) == 100
+
+    assert "sweet spot" in interpret_institutional_sponsorship(80, 45.0, False, [])
+    assert "could grow" in interpret_institutional_sponsorship(40, 25.0, False, [])
+    assert "getting crowded" in interpret_institutional_sponsorship(120, 70.0, False, [])
+    assert "overcrowded" in interpret_institutional_sponsorship(180, 95.0, False, [])
+    assert "underowned" in interpret_institutional_sponsorship(10, 15.0, False, [])
+    super_msg = interpret_institutional_sponsorship(
+        75,
+        45.0,
+        True,
+        ["BERKSHIRE HATHAWAY INC", "BAUPOST GROUP LLC", "PERSHING SQUARE CAPITAL"],
+    )
+    assert "Superinvestors" in super_msg
+    assert "+1 more" in super_msg
 
 
 def test_scorer_phase1_phase2_phase3_and_interpretation_bands():
