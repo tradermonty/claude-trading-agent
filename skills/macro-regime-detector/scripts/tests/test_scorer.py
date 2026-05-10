@@ -1,6 +1,7 @@
 """Tests for Macro Regime Detector Scorer"""
 
 from scorer import (
+    _calculate_transition_probability,
     calculate_composite_score,
     check_regime_consistency,
     classify_regime,
@@ -120,6 +121,37 @@ class TestCalculateCompositeScore:
             assert expected_zone_part in result["zone"], (
                 f"Score {score_val}: expected '{expected_zone_part}' in '{result['zone']}'"
             )
+
+    def test_empty_scores_reports_na_signals(self):
+        result = calculate_composite_score({})
+
+        assert result["strongest_signal"]["component"] == "N/A"
+        assert result["weakest_signal"]["component"] == "N/A"
+        assert result["strongest_signal"]["score"] == 0
+        assert result["weakest_signal"]["score"] == 0
+
+    def test_limited_data_quality_label(self):
+        scores = {
+            "concentration": 50,
+            "yield_curve": 50,
+            "credit_conditions": 50,
+            "size_factor": 50,
+            "equity_bond": 50,
+            "sector_rotation": 50,
+        }
+        availability = {
+            "concentration": True,
+            "yield_curve": False,
+            "credit_conditions": False,
+            "size_factor": False,
+            "equity_bond": False,
+            "sector_rotation": True,
+        }
+
+        result = calculate_composite_score(scores, availability)
+
+        assert result["data_quality"]["available_count"] == 2
+        assert result["data_quality"]["label"] == "Limited (2/6 components) - low confidence"
 
 
 class TestClassifyRegime:
@@ -473,6 +505,23 @@ class TestClassifyRegime:
         result = classify_regime(components)
         assert result["confidence"] == "high"
 
+    def test_low_confidence_for_weak_clear_regime(self):
+        """A clear but weak regime score should be classified with low confidence."""
+        components = {
+            "concentration": self._make_component(15, "broadening"),
+            "yield_curve": self._make_component(10, "neutral"),
+            "credit_conditions": self._make_component(10, "neutral"),
+            "size_factor": self._make_component(10, "neutral"),
+            "equity_bond": self._make_component(10, "neutral"),
+            "sector_rotation": self._make_component(10, "neutral"),
+        }
+
+        result = classify_regime(components)
+
+        assert result["current_regime"] == "broadening"
+        assert result["regime_scores"]["broadening"] == 2
+        assert result["confidence"] == "low"
+
     # --- Improvement: Contraction regime with size factor contradiction ---
 
     def test_contraction_reduced_by_small_cap_leading(self):
@@ -505,3 +554,102 @@ class TestClassifyRegime:
         result = classify_regime(components)
         # credit(+2) + sector(+2) + eb(+1) + yc_flattening(+1) = 6, no reduction
         assert result["regime_scores"]["contraction"] == 6
+
+    def test_transition_probability_builds_sorted_regimes_when_omitted(self):
+        result = _calculate_transition_probability(
+            signaling=3,
+            all_scores=[40, 40, 40, 40, 40, 40],
+            regime_scores={
+                "concentration": 0,
+                "broadening": 3,
+                "contraction": 2,
+                "inflationary": 0,
+                "transitional": 0,
+            },
+            current_regime="broadening",
+        )
+
+        assert result["level"] == "moderate"
+        assert result["ambiguous"] is True
+
+    def test_transition_probability_from_transitional_to_top_regime(self):
+        result = _calculate_transition_probability(
+            signaling=3,
+            all_scores=[50, 50, 50, 50, 50, 50],
+            regime_scores={
+                "concentration": 2,
+                "broadening": 4,
+                "contraction": 0,
+                "inflationary": 0,
+                "transitional": 4,
+            },
+            current_regime="transitional",
+            sorted_regimes=[("broadening", 4), ("concentration", 2)],
+        )
+
+        assert result["level"] == "moderate"
+        assert result["from_regime"] == "concentration"
+        assert result["to_regime"] == "broadening"
+
+    def test_transition_probability_reports_shift_when_top_differs(self):
+        result = _calculate_transition_probability(
+            signaling=4,
+            all_scores=[60, 60, 60, 60, 60, 60],
+            regime_scores={
+                "concentration": 1,
+                "broadening": 4,
+                "contraction": 0,
+                "inflationary": 0,
+                "transitional": 0,
+            },
+            current_regime="concentration",
+            sorted_regimes=[("broadening", 4), ("concentration", 1)],
+        )
+
+        assert result["level"] == "high"
+        assert result["from_regime"] == "concentration"
+        assert result["to_regime"] == "broadening"
+
+    def test_regime_consistency_unknown_list_expectation_is_neutral(self):
+        components = {
+            "concentration": self._make_component(10, "neutral"),
+            "yield_curve": self._make_component(10, "unknown"),
+            "credit_conditions": self._make_component(10, "tightening"),
+            "size_factor": self._make_component(10, "neutral"),
+            "equity_bond": self._make_component(10, "risk_off"),
+            "sector_rotation": self._make_component(10, "risk_off"),
+        }
+
+        result = check_regime_consistency("contraction", components)
+
+        assert result["yield_curve"] == "neutral"
+
+    def test_regime_consistency_unknown_scalar_expectation_is_neutral(self):
+        components = {
+            "concentration": self._make_component(10, "unknown"),
+            "yield_curve": self._make_component(10, "stable"),
+            "credit_conditions": self._make_component(10, "stable"),
+            "size_factor": self._make_component(10, "large_cap_leading"),
+            "equity_bond": self._make_component(10, "neutral"),
+            "sector_rotation": self._make_component(10, "neutral"),
+        }
+
+        result = check_regime_consistency("concentration", components)
+
+        assert result["concentration"] == "neutral"
+
+    def test_missing_component_is_skipped_from_evidence(self):
+        components = {
+            "concentration": self._make_component(50, "broadening"),
+            "yield_curve": self._make_component(50, "steepening"),
+            "credit_conditions": self._make_component(10, "stable"),
+            "size_factor": self._make_component(10, "neutral"),
+            "equity_bond": self._make_component(10, "neutral"),
+        }
+
+        result = classify_regime(components)
+
+        assert [item["component"] for item in result["evidence"]] == [
+            "Market Concentration (RSP/SPY)",
+            "Yield Curve (10Y-2Y)",
+        ]
