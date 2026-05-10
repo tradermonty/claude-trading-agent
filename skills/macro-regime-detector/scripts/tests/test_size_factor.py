@@ -1,5 +1,6 @@
 """Tests for Size Factor Calculator (IWM/SPY)"""
 
+import calculators.size_factor_calculator as size_factor
 from calculators.size_factor_calculator import calculate_size_factor
 from test_helpers import make_monthly_history
 
@@ -9,6 +10,26 @@ class TestCalculateSizeFactor:
         result = calculate_size_factor([], [])
         assert result["score"] == 0
         assert result["data_available"] is False
+
+    def test_insufficient_monthly_data(self):
+        iwm = make_monthly_history([200] * 6, start_year=2025)
+        spy = make_monthly_history([500] * 6, start_year=2025)
+
+        result = calculate_size_factor(iwm, spy)
+
+        assert result["data_available"] is False
+        assert (
+            result["signal"] == "INSUFFICIENT DATA: Insufficient monthly data (need >= 12 months)"
+        )
+
+    def test_insufficient_ratio_data_when_dates_do_not_overlap(self):
+        iwm = make_monthly_history([200] * 12, start_year=2025)
+        spy = make_monthly_history([500] * 12, start_year=2023)
+
+        result = calculate_size_factor(iwm, spy)
+
+        assert result["data_available"] is False
+        assert result["signal"] == "INSUFFICIENT DATA: Insufficient ratio data"
 
     def test_stable_ratio_low_score(self):
         iwm = make_monthly_history([200] * 24, start_year=2024)
@@ -57,3 +78,8 @@ class TestCalculateSizeFactor:
         for key in required_keys:
             assert key in result
         assert 0 <= result["score"] <= 100
+
+    def test_signal_descriptions_cover_score_bands_and_custom_direction(self):
+        assert size_factor._describe_signal(60, "small_cap_leading", 0.5).startswith("TRANSITION")
+        assert size_factor._describe_signal(40, "large_cap_leading", 0.5).startswith("SHIFTING")
+        assert "custom_direction" in size_factor._describe_signal(10, "custom_direction", 0.5)
