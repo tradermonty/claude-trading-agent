@@ -3,7 +3,7 @@
 import os
 import tempfile
 
-from report_generator import generate_markdown_report
+from report_generator import generate_json_report, generate_markdown_report
 
 
 def _base_analysis(**overrides):
@@ -415,3 +415,74 @@ class TestC6ScoreIntDisplay:
         md = _generate_to_string(analysis)
         # C1 score=80 should still appear as 80
         assert " 80 " in md
+
+
+class TestReportGeneratorBranches:
+    def test_json_report_writes_analysis(self):
+        analysis = _base_analysis()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            tmp = f.name
+        try:
+            generate_json_report(analysis, tmp)
+            with open(tmp) as f:
+                text = f.read()
+            assert '"composite_score": 60.0' in text
+        finally:
+            os.unlink(tmp)
+
+    def test_freshness_warning_and_last_modified_render(self):
+        analysis = _base_analysis()
+        analysis["metadata"]["data_freshness"]["warning"] = "CSV is stale"
+        analysis["metadata"]["data_freshness"]["last_modified"] = "2025-01-14T09:00:00Z"
+
+        md = _generate_to_string(analysis)
+
+        assert "CSV is stale" in md
+        assert "CSV last modified: 2025-01-14T09:00:00Z" in md
+
+    def test_cycle_extreme_trough_and_pink_zone_render(self):
+        analysis = _base_analysis()
+        analysis["components"]["cycle_position"]["extreme_trough"] = True
+        analysis["components"]["bearish_signal"]["signal_active"] = True
+        analysis["components"]["bearish_signal"]["trend"] = -1
+        analysis["components"]["bearish_signal"]["in_pink_zone"] = True
+        analysis["components"]["bearish_signal"]["pink_zone_days"] = 4
+        analysis["components"]["bearish_signal"]["pink_zone_adjustment"] = -20
+
+        md = _generate_to_string(analysis)
+
+        assert "Extreme Trough" in md
+        assert "Pink Zone:** YES (4 consecutive days)" in md
+        assert "Pink Zone Adjustment" in md
+
+    def test_historical_percentile_adjustment_labels(self):
+        analysis = _base_analysis()
+        analysis["components"]["historical_percentile"]["adjustment"] = -10
+        assert "Overheated (-10)" in _generate_to_string(analysis)
+
+        analysis["components"]["historical_percentile"]["adjustment"] = 10
+        assert "Oversold (+10)" in _generate_to_string(analysis)
+
+    def test_key_levels_table_renders_entries(self):
+        analysis = _base_analysis(
+            key_levels={
+                "8MA Support": {
+                    "value": "0.50",
+                    "significance": "Important support level",
+                }
+            }
+        )
+
+        md = _generate_to_string(analysis)
+
+        assert "| 8MA Support | 0.50 | Important support level |" in md
+
+    def test_score_bar_lower_bands_in_component_table(self):
+        analysis = _base_analysis()
+        analysis["composite"]["component_scores"]["breadth_level_trend"]["score"] = 35
+        analysis["composite"]["component_scores"]["ma_crossover"]["score"] = 10
+
+        md = _generate_to_string(analysis)
+
+        assert "█░░░ 35" in md
+        assert "░░░░ 10" in md
