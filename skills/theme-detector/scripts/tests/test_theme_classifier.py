@@ -8,7 +8,10 @@ sector weight calculation, and edge cases.
 
 from calculators.industry_ranker import rank_industries
 from calculators.theme_classifier import (
+    _industry_overlap_ratio,
     classify_themes,
+    deduplicate_themes,
+    enrich_vertical_themes,
     get_matched_industry_names,
     get_theme_sector_weights,
 )
@@ -240,6 +243,23 @@ class TestVerticalThemes:
         themes = classify_themes(ranked, SAMPLE_THEMES_CONFIG)
         vertical_themes = [t for t in themes if "Sector" in t["theme_name"]]
         assert len(vertical_themes) == 0
+
+    def test_bottom_overlap_and_missing_sector_are_skipped(self):
+        """Bottom pass skips top/bottom overlap and industries without sector."""
+        ranked = [
+            _make_ranked_industry("Semiconductor", 20.0, 90.0, "bullish", 1, "Technology"),
+            _make_ranked_industry("No Sector Top", 18.0, 85.0, "bullish", 2),
+            _make_ranked_industry("No Sector Bottom", -18.0, 15.0, "bearish", 3),
+            _make_ranked_industry("Semiconductor", -20.0, 10.0, "bearish", 4, "Technology"),
+        ]
+
+        themes = classify_themes(
+            ranked,
+            {"cross_sector": [], "vertical_min_industries": 2, "cross_sector_min_matches": 2},
+            top_n=2,
+        )
+
+        assert themes == []
 
 
 # ---------------------------------------------------------------------------
@@ -584,3 +604,165 @@ class TestThemeOrigin:
         assert len(vertical) >= 1
         assert vertical[0]["theme_origin"] == "vertical"
         assert vertical[0]["name_confidence"] == "high"
+
+
+# ---------------------------------------------------------------------------
+# Vertical enrichment and deduplication
+# ---------------------------------------------------------------------------
+
+
+def _theme(
+    name, origin, direction="bullish", industries=None, etfs=None, stocks=None, weights=None
+):
+    return {
+        "theme_name": name,
+        "theme_origin": origin,
+        "direction": direction,
+        "matching_industries": industries or [],
+        "proxy_etfs": etfs or [],
+        "static_stocks": stocks or [],
+        "sector_weights": weights or {},
+    }
+
+
+class TestThemeOverlap:
+    def test_overlap_ratio_empty_inputs(self):
+        assert _industry_overlap_ratio(_theme("A", "seed"), _theme("B", "vertical")) == 0.0
+
+    def test_overlap_ratio_uses_smaller_set(self):
+        seed = _theme(
+            "Seed",
+            "seed",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+        )
+        vertical = _theme(
+            "Tech",
+            "vertical",
+            industries=[
+                {"name": "Semiconductor"},
+                {"name": "Software - Application"},
+                {"name": "IT Services"},
+            ],
+        )
+        assert _industry_overlap_ratio(seed, vertical) == 1.0
+
+
+class TestEnrichVerticalThemes:
+    def test_vertical_inherits_etfs_and_stocks_from_overlapping_seed(self):
+        seed = _theme(
+            "AI & Automation",
+            "seed",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+            etfs=["BOTZ"],
+            stocks=["NVDA"],
+        )
+        vertical = _theme(
+            "Technology Sector Concentration",
+            "vertical",
+            industries=[
+                {"name": "Semiconductor", "sector": "Technology"},
+                {"name": "Software - Application", "sector": "Technology"},
+                {"name": "IT Services", "sector": "Technology"},
+            ],
+            weights={"Technology": 1.0},
+        )
+
+        themes = [seed, vertical]
+        enrich_vertical_themes(themes)
+
+        assert vertical["proxy_etfs"] == ["BOTZ"]
+        assert vertical["static_stocks"] == ["NVDA"]
+
+    def test_vertical_with_existing_etf_keeps_it_and_gets_sector_stocks(self):
+        vertical = _theme(
+            "Energy Sector Concentration",
+            "vertical",
+            industries=[{"name": "Oil & Gas E&P", "sector": "Energy"}],
+            etfs=["CUSTOM"],
+            weights={"Energy": 1.0},
+        )
+
+        enrich_vertical_themes([vertical])
+
+        assert vertical["proxy_etfs"] == ["CUSTOM"]
+        assert vertical["static_stocks"][:2] == ["XOM", "CVX"]
+
+    def test_vertical_uses_sector_weight_fallback_for_etf_and_stocks(self):
+        vertical = _theme(
+            "Technology Sector Concentration",
+            "vertical",
+            industries=[{"name": "IT Services", "sector": "Technology"}],
+            weights={"Technology": 1.0},
+        )
+
+        enrich_vertical_themes([vertical])
+
+        assert vertical["proxy_etfs"] == ["XLK"]
+        assert vertical["static_stocks"][:2] == ["AAPL", "MSFT"]
+
+    def test_vertical_infers_sector_when_weights_missing(self):
+        vertical = _theme(
+            "Healthcare Sector Concentration",
+            "vertical",
+            industries=[
+                {"name": "Medical Devices", "sector": "Healthcare"},
+                {"name": "Healthcare Plans", "sector": "Healthcare"},
+            ],
+        )
+
+        enrich_vertical_themes([vertical])
+
+        assert vertical["proxy_etfs"] == ["XLV"]
+        assert vertical["static_stocks"][:2] == ["UNH", "JNJ"]
+
+    def test_non_vertical_theme_is_not_enriched(self):
+        seed = _theme("Seed", "seed", etfs=[], stocks=[])
+        enrich_vertical_themes([seed])
+        assert seed["proxy_etfs"] == []
+        assert seed["static_stocks"] == []
+
+
+class TestDeduplicateThemes:
+    def test_same_direction_high_overlap_vertical_removed(self):
+        seed = _theme(
+            "AI & Automation",
+            "seed",
+            direction="bullish",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+        )
+        vertical = _theme(
+            "Technology Sector Concentration",
+            "vertical",
+            direction="bullish",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+        )
+
+        result = deduplicate_themes([seed, vertical])
+
+        assert result == [seed]
+
+    def test_different_direction_overlap_is_kept(self):
+        seed = _theme(
+            "AI & Automation",
+            "seed",
+            direction="bullish",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+        )
+        vertical = _theme(
+            "Technology Sector Concentration",
+            "vertical",
+            direction="bearish",
+            industries=[{"name": "Semiconductor"}, {"name": "Software - Application"}],
+        )
+
+        result = deduplicate_themes([seed, vertical])
+
+        assert result == [seed, vertical]
+
+    def test_low_overlap_vertical_is_kept(self):
+        seed = _theme("AI & Automation", "seed", industries=[{"name": "Semiconductor"}])
+        vertical = _theme("Energy Sector", "vertical", industries=[{"name": "Oil & Gas E&P"}])
+
+        result = deduplicate_themes([seed, vertical])
+
+        assert result == [seed, vertical]
