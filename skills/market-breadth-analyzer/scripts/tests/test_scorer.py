@@ -1,5 +1,6 @@
 """Tests for the composite scoring engine."""
 
+import scorer as scorer_module
 from scorer import COMPONENT_WEIGHTS, calculate_composite_score
 
 
@@ -112,3 +113,24 @@ class TestWeightRedistribution:
         avail["divergence"] = False
         result = calculate_composite_score(scores, avail)
         assert result["component_scores"]["divergence"]["effective_weight"] == 0.0
+
+    def test_weakening_zone_guidance(self):
+        result = calculate_composite_score(_all_scores(30), _all_available())
+        assert result["zone"] == "Weakening"
+        assert result["zone_color"] == "orange"
+        assert result["exposure_guidance"] == "40-60%"
+
+    def test_critical_zone_guidance(self):
+        result = calculate_composite_score(_all_scores(10), _all_available())
+        assert result["zone"] == "Critical"
+        assert result["zone_color"] == "red"
+        assert result["exposure_guidance"] == "25-40%"
+
+    def test_zero_weight_available_components_get_zero_effective_weight(self, monkeypatch):
+        zero_weights = {key: 0.0 for key in COMPONENT_WEIGHTS}
+        monkeypatch.setattr(scorer_module, "COMPONENT_WEIGHTS", zero_weights)
+
+        result = scorer_module.calculate_composite_score(_all_scores(70), _all_available())
+
+        assert result["composite_score"] == 50.0
+        assert all(comp["effective_weight"] == 0.0 for comp in result["component_scores"].values())
