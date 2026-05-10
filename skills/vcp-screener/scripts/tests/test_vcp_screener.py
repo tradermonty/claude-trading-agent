@@ -251,6 +251,12 @@ class TestPivotProximity:
         result = calculate_pivot_proximity(100.0, None)
         assert result["score"] == 0
 
+    def test_invalid_current_price(self):
+        result = calculate_pivot_proximity(0.0, 100.0)
+        assert result["score"] == 0
+        assert result["trade_status"] == "INVALID PRICE"
+        assert result["error"] == "Invalid current price"
+
     def test_breakout_confirmed(self):
         """0-3% above with volume -> base 90 + bonus 10 = 100, BREAKOUT CONFIRMED."""
         result = calculate_pivot_proximity(
@@ -267,6 +273,12 @@ class TestPivotProximity:
     def test_far_below_pivot(self):
         result = calculate_pivot_proximity(80.0, 100.0)
         assert result["score"] == 10
+
+    def test_below_pivot_distance_bands(self):
+        assert calculate_pivot_proximity(96.0, 100.0)["score"] == 75
+        assert calculate_pivot_proximity(93.0, 100.0)["score"] == 60
+        assert calculate_pivot_proximity(91.0, 100.0)["score"] == 45
+        assert calculate_pivot_proximity(87.0, 100.0)["score"] == 30
 
     def test_below_stop_level(self):
         result = calculate_pivot_proximity(90.0, 100.0, last_contraction_low=95.0)
@@ -285,6 +297,12 @@ class TestPivotProximity:
         result = calculate_pivot_proximity(125.0, 100.0, last_contraction_low=95.0)
         assert result["score"] == 20
         assert "OVEREXTENDED" in result["trade_status"]
+
+    def test_extended_above_pivot_15pct(self):
+        """15% above pivot -> score=35, very high chase risk."""
+        result = calculate_pivot_proximity(115.0, 100.0, last_contraction_low=95.0)
+        assert result["score"] == 35
+        assert "Very high chase risk" in result["trade_status"]
 
     def test_near_above_pivot_2pct(self):
         """2% above pivot (no volume) -> score=90, ABOVE PIVOT."""
