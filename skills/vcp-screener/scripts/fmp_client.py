@@ -19,7 +19,7 @@ import time
 
 try:
     import requests
-except ImportError:
+except ImportError:  # pragma: no cover - import-time dependency guard
     print("ERROR: requests library not found. Install with: pip install requests", file=sys.stderr)
     sys.exit(1)
 
