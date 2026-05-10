@@ -284,6 +284,37 @@ class TestVolumePattern:
         assert result["dry_up_ratio"] < 0.3
         assert result["score"] >= 80
 
+    def test_no_volume_data_returns_error(self):
+        prices = _make_prices(60, volume=0)
+        result = calculate_volume_pattern(prices)
+        assert result["score"] == 0
+        assert result["dry_up_ratio"] is None
+        assert result["error"] == "No volume data available"
+
+    def test_no_dry_up_scores_low(self):
+        prices = _make_prices(60, volume=1_000_000)
+        for i in range(1, 11):
+            prices[i]["volume"] = 2_000_000
+        result = calculate_volume_pattern(prices)
+        assert result["dry_up_ratio"] > 1.0
+        assert result["score"] == 20
+
+    def test_net_accumulation_bonus(self):
+        prices = _make_prices(60, start=100.0, daily_change=0.001, volume=1_000_000)
+        for i in range(5):
+            prices[i]["volume"] = 2_000_000
+        result = calculate_volume_pattern(prices)
+        assert result["net_accumulation"] > 3
+        assert result["score"] == 30
+
+    def test_net_distribution_penalty(self):
+        prices = _make_prices(60, start=100.0, daily_change=-0.001, volume=1_000_000)
+        for i in range(5):
+            prices[i]["volume"] = 2_000_000
+        result = calculate_volume_pattern(prices)
+        assert result["net_accumulation"] < -3
+        assert result["score"] <= 30
+
 
 # ===========================================================================
 # Pivot Proximity Tests
@@ -3106,6 +3137,14 @@ class TestBreakoutVolumeScore:
         pivot = 100.0
         result = calculate_volume_pattern(prices, pivot_price=pivot, breakout_volume_ratio=1.5)
         assert result["breakout_volume_score"] == 60
+
+    def test_breakout_volume_score_80_at_2x(self):
+        """Bar[0] at 2x+ avg above pivot → score = 80."""
+        prices = _make_prices(60, volume=1_000_000)
+        prices[0]["volume"] = 2_200_000
+        prices[0]["close"] = 105.0
+        result = calculate_volume_pattern(prices, pivot_price=100.0)
+        assert result["breakout_volume_score"] == 80
 
     def test_breakout_volume_score_100_at_3x(self):
         """Bar[0] at 3x+ avg above pivot → score = 100."""
