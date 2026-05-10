@@ -4,6 +4,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+import representative_stock_selector as rss
 from representative_stock_selector import (
     _MAX_CONSECUTIVE_FAILURES,
     RepresentativeStockSelector,
@@ -39,6 +40,9 @@ class TestParseMarketCap:
     def test_float_passthrough(self):
         assert _parse_market_cap(1.5e9) == 1_500_000_000
 
+    def test_invalid_string_returns_zero(self):
+        assert _parse_market_cap("not-a-cap") == 0
+
 
 class TestParseChange:
     def test_percent_string(self):
@@ -67,6 +71,12 @@ class TestParseChange:
     def test_none_returns_none(self):
         assert _parse_change(None) is None
 
+    def test_invalid_string_returns_none(self):
+        assert _parse_change("not-a-change") is None
+
+    def test_unsupported_type_returns_none(self):
+        assert _parse_change(object()) is None
+
 
 class TestParseVolume:
     def test_comma_string(self):
@@ -86,6 +96,12 @@ class TestParseVolume:
 
     def test_none_returns_none(self):
         assert _parse_volume(None) is None
+
+    def test_invalid_m_suffix_returns_none(self):
+        assert _parse_volume("badM") is None
+
+    def test_invalid_plain_string_returns_none(self):
+        assert _parse_volume("not-a-volume") is None
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +217,43 @@ class TestCompositeScore:
         # Should not crash; A has bigger cap so should rank higher
         assert scored[0]["symbol"] == "A"
         assert scored[0]["composite_score"] > scored[1]["composite_score"]
+
+    def test_mixed_missing_change_and_volume_are_excluded_per_metric(self):
+        sel = self._make_selector()
+        stocks = [
+            {
+                "symbol": "FULL",
+                "source": "finviz_public",
+                "market_cap": 100_000_000_000,
+                "change": 8.0,
+                "volume": 3_000_000,
+                "matched_industries": [],
+                "reasons": [],
+            },
+            {
+                "symbol": "NO_CHANGE",
+                "source": "finviz_public",
+                "market_cap": 90_000_000_000,
+                "change": None,
+                "volume": 2_000_000,
+                "matched_industries": [],
+                "reasons": [],
+            },
+            {
+                "symbol": "NO_VOLUME",
+                "source": "finviz_public",
+                "market_cap": 80_000_000_000,
+                "change": 2.0,
+                "volume": None,
+                "matched_industries": [],
+                "reasons": [],
+            },
+        ]
+
+        scored = sel._compute_composite_score(stocks, is_bearish=False)
+
+        assert scored[0]["symbol"] == "FULL"
+        assert all("composite_score" in stock for stock in scored)
 
     def test_empty_input(self):
         sel = self._make_selector()
@@ -499,6 +552,26 @@ class TestSelectStocks:
             result = sel.select_stocks(theme, max_stocks=5)
             assert len(result) > 0
             assert any(d["source"] == "etf_holdings" for d in result)
+
+    def test_etf_holdings_cache_is_reused(self):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        sel._etf_cache["GDX"] = _mock_etf_holdings("GDX", 2)
+
+        with (
+            patch.object(sel, "_fetch_finviz_public", return_value=[]),
+            patch.object(sel, "_fetch_etf_holdings") as fetch_mock,
+            patch.object(sel, "_rate_limit"),
+        ):
+            theme = {
+                "direction": "bullish",
+                "matching_industries": [{"name": "Gold"}],
+                "proxy_etfs": ["GDX"],
+                "static_stocks": [],
+            }
+            result = sel.select_stocks(theme, max_stocks=5)
+
+        fetch_mock.assert_not_called()
+        assert {stock["source"] for stock in result} == {"etf_holdings"}
 
     def test_static_final_fallback(self):
         """All sources fail => static_stocks."""
@@ -849,6 +922,49 @@ class TestCircuitBreaker:
 
 
 class TestFetchFinvizPublic:
+    def test_overview_missing_records_failure(self, monkeypatch):
+        sel = RepresentativeStockSelector()
+        monkeypatch.setattr(rss, "Overview", None)
+
+        result = sel._fetch_finviz_public("Gold", limit=10, is_bearish=False)
+
+        assert result == []
+        assert sel._source_states["public"].consecutive_failures == 1
+
+    def test_empty_dataframe_is_successful_empty_result(self):
+        sel = RepresentativeStockSelector()
+        pd = pytest.importorskip("pandas")
+        mock_df = pd.DataFrame()
+
+        with patch("representative_stock_selector.Overview") as MockOverview:
+            mock_instance = MockOverview.return_value
+            mock_instance.screener_view.return_value = mock_df
+            with patch.object(sel, "_rate_limit"):
+                result = sel._fetch_finviz_public("Gold", limit=10, is_bearish=False)
+
+        assert result == []
+        assert sel._source_states["public"].consecutive_failures == 0
+
+    def test_blank_ticker_rows_are_skipped(self):
+        sel = RepresentativeStockSelector()
+        pd = pytest.importorskip("pandas")
+        mock_df = pd.DataFrame(
+            {
+                "Ticker": ["", "NVDA"],
+                "Market Cap": ["-", "2.8T"],
+                "Change": ["-", "5.0%"],
+                "Volume": ["-", "1.2M"],
+            }
+        )
+
+        with patch("representative_stock_selector.Overview") as MockOverview:
+            mock_instance = MockOverview.return_value
+            mock_instance.screener_view.return_value = mock_df
+            with patch.object(sel, "_rate_limit"):
+                result = sel._fetch_finviz_public("Semiconductors", limit=10, is_bearish=False)
+
+        assert [stock["symbol"] for stock in result] == ["NVDA"]
+
     def test_returns_stock_dicts_with_schema(self):
         """Each element has required keys."""
         sel = RepresentativeStockSelector()
@@ -977,6 +1093,12 @@ class TestFetchFinvizPublic:
 
 
 class TestFetchFinvizElite:
+    def test_requests_missing_returns_empty(self, monkeypatch):
+        sel = RepresentativeStockSelector(finviz_elite_key="test_key", finviz_mode="elite")
+        monkeypatch.setattr(rss, "requests", None)
+
+        assert sel._fetch_finviz_elite("Gold", limit=10, is_bearish=False) == []
+
     def test_csv_parsing(self):
         """CSV response is correctly parsed."""
         sel = RepresentativeStockSelector(
@@ -1063,6 +1185,126 @@ class TestFetchFinvizElite:
             result = sel._fetch_finviz_elite("Gold", limit=10, is_bearish=False)
         assert result == []
         assert sel._source_states["elite"].consecutive_failures == 1
+
+    def test_non_200_returns_empty_and_records_failure(self):
+        sel = RepresentativeStockSelector(
+            finviz_elite_key="test_key",
+            finviz_mode="elite",
+        )
+        mock_response = MagicMock(status_code=500, text="Server error")
+        with (
+            patch("representative_stock_selector.requests.get", return_value=mock_response),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_finviz_elite("Gold", limit=10, is_bearish=False)
+
+        assert result == []
+        assert sel._source_states["elite"].consecutive_failures == 1
+
+    def test_blank_tickers_are_skipped_and_limit_is_respected(self):
+        sel = RepresentativeStockSelector(
+            finviz_elite_key="test_key",
+            finviz_mode="elite",
+        )
+        csv_content = (
+            "No.,Ticker,Company,Sector,Industry,Country,Market Cap,P/E,Price,Change,Volume\n"
+            "1,,Blank,Basic Materials,Gold,USA,1B,20,10,1.0%,100000\n"
+            "2,NEM,Newmont,Basic Materials,Gold,USA,50.5B,20.5,45.30,5.20%,1234567\n"
+            "3,GOLD,Barrick Gold,Basic Materials,Gold,Canada,30.2B,15.3,18.50,3.10%,2345678\n"
+        )
+        mock_response = MagicMock(status_code=200, text=csv_content)
+        with (
+            patch("representative_stock_selector.requests.get", return_value=mock_response),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_finviz_elite("Gold", limit=1, is_bearish=False)
+
+        assert [stock["symbol"] for stock in result] == ["NEM"]
+
+    def test_exception_returns_empty_and_records_failure(self):
+        sel = RepresentativeStockSelector(
+            finviz_elite_key="test_key",
+            finviz_mode="elite",
+        )
+        with (
+            patch("representative_stock_selector.requests.get", side_effect=Exception("network")),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_finviz_elite("Gold", limit=10, is_bearish=False)
+
+        assert result == []
+        assert sel._source_states["elite"].consecutive_failures == 1
+
+
+class TestFetchETFHoldings:
+    def test_requests_missing_or_missing_key_returns_empty(self, monkeypatch):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        monkeypatch.setattr(rss, "requests", None)
+        assert sel._fetch_etf_holdings("GDX", limit=10) == []
+
+        sel_without_key = RepresentativeStockSelector()
+        assert sel_without_key._fetch_etf_holdings("GDX", limit=10) == []
+
+    def test_non_200_returns_empty_and_records_failure(self):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        mock_response = MagicMock(status_code=500)
+
+        with (
+            patch("representative_stock_selector.requests.get", return_value=mock_response),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_etf_holdings("GDX", limit=10)
+
+        assert result == []
+        assert sel._source_states["fmp"].consecutive_failures == 1
+
+    def test_non_list_json_returns_empty_and_records_failure(self):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        mock_response = MagicMock(status_code=200)
+        mock_response.json.return_value = {"unexpected": "shape"}
+
+        with (
+            patch("representative_stock_selector.requests.get", return_value=mock_response),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_etf_holdings("GDX", limit=10)
+
+        assert result == []
+        assert sel._source_states["fmp"].consecutive_failures == 1
+
+    def test_parses_holdings_and_skips_blank_assets(self):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+        mock_response = MagicMock(status_code=200)
+        mock_response.json.return_value = [
+            {"asset": "", "marketValue": "1B"},
+            {"asset": "NEM", "marketValue": "50B"},
+            {"asset": "GOLD", "marketValue": "30B"},
+        ]
+
+        with (
+            patch(
+                "representative_stock_selector.requests.get", return_value=mock_response
+            ) as mock_get,
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_etf_holdings("GDX", limit=3)
+
+        assert [stock["symbol"] for stock in result] == ["NEM", "GOLD"]
+        assert result[0]["reasons"] == ["Held by GDX"]
+        assert mock_get.call_args.kwargs["headers"]["apikey"] == sel._fmp_api_key
+        assert sel._source_states["fmp"].consecutive_failures == 0
+
+    def test_exception_returns_empty_and_records_failure(self):
+        sel = RepresentativeStockSelector(fmp_api_key="test_key")
+
+        with (
+            patch("representative_stock_selector.requests.get", side_effect=Exception("network")),
+            patch.object(sel, "_rate_limit"),
+        ):
+            result = sel._fetch_etf_holdings("GDX", limit=10)
+
+        assert result == []
+        assert sel._source_states["fmp"].consecutive_failures == 1
 
 
 # ---------------------------------------------------------------------------
