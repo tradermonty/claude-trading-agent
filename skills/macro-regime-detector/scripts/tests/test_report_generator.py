@@ -3,7 +3,7 @@
 import os
 import tempfile
 
-from report_generator import generate_markdown_report
+from report_generator import generate_json_report, generate_markdown_report
 
 
 def _make_analysis(
@@ -177,6 +177,18 @@ def _make_analysis(
     }
 
 
+def _generate_to_string(analysis):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        path = f.name
+
+    try:
+        generate_markdown_report(analysis, path)
+        with open(path) as f:
+            return f.read()
+    finally:
+        os.unlink(path)
+
+
 class TestCompetingRegimeRecommendations:
     def test_tied_regimes_shows_competing_posture(self):
         """When tied_regimes exists, report should show competing regime's posture."""
@@ -272,6 +284,131 @@ class TestYieldCurveProxyWarning:
             assert "proxy" in content.lower() or "SHY/TLT" in content
         finally:
             os.unlink(path)
+
+
+class TestMacroReportBranches:
+    def test_json_report_writes_analysis(self):
+        analysis = _make_analysis()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            path = f.name
+
+        try:
+            generate_json_report(analysis, path)
+            with open(path) as f:
+                content = f.read()
+            assert '"composite_score": 51.0' in content
+            assert '"current_regime": "contraction"' in content
+        finally:
+            os.unlink(path)
+
+    def test_transition_direction_rendered_when_present(self):
+        analysis = _make_analysis()
+        analysis["regime"]["transition_probability"]["from_regime"] = "concentration"
+        analysis["regime"]["transition_probability"]["to_regime"] = "contraction"
+
+        content = _generate_to_string(analysis)
+
+        assert "Transition Direction:** Concentration → Contraction" in content
+
+    def test_unavailable_component_status_is_rendered(self):
+        analysis = _make_analysis()
+        analysis["components"]["sector_rotation"] = {
+            "data_available": False,
+            "signal": "No sector data",
+        }
+
+        content = _generate_to_string(analysis)
+
+        assert "- **Status:** No sector data" in content
+
+    def test_yield_curve_detail_fields_render(self):
+        analysis = _make_analysis()
+        analysis["components"]["yield_curve"].update(
+            {
+                "current_spread": -0.255,
+                "steepening_type": "bull_steepener",
+                "curve_state": "inverted",
+                "current_10y": 4.25,
+                "current_2y": 4.51,
+            }
+        )
+
+        content = _generate_to_string(analysis)
+
+        assert "- **Current Spread:** -0.255%" in content
+        assert "- **Steepening Type:** Bull (short-end led: 2Y rates declining)" in content
+        assert "- **Curve State:** inverted" in content
+        assert "- **10Y Rate:** 4.25%" in content
+        assert "- **2Y Rate:** 4.51%" in content
+
+    def test_unknown_steepening_type_falls_back_to_raw_label(self):
+        analysis = _make_analysis()
+        analysis["components"]["yield_curve"]["steepening_type"] = "custom_steepener"
+
+        content = _generate_to_string(analysis)
+
+        assert "- **Steepening Type:** custom_steepener" in content
+
+    def test_negative_correlation_bull_steepener_duration_guidance(self):
+        analysis = _make_analysis(
+            regime="contraction",
+            ambiguous=True,
+            tied_regimes=["contraction", "inflationary"],
+        )
+        analysis["components"]["equity_bond"]["correlation_regime"] = "negative"
+        analysis["components"]["yield_curve"]["steepening_type"] = "bull_steepener"
+
+        content = _generate_to_string(analysis)
+
+        assert "duration extension OK" in content
+
+    def test_negative_correlation_bear_steepener_duration_guidance(self):
+        analysis = _make_analysis(
+            regime="contraction",
+            ambiguous=True,
+            tied_regimes=["contraction", "inflationary"],
+        )
+        analysis["components"]["equity_bond"]["correlation_regime"] = "negative"
+        analysis["components"]["yield_curve"]["steepening_type"] = "bear_steepener"
+
+        content = _generate_to_string(analysis)
+
+        assert "cautious, TIPS preferred" in content
+
+    def test_negative_correlation_generic_duration_guidance(self):
+        analysis = _make_analysis(
+            regime="contraction",
+            ambiguous=True,
+            tied_regimes=["contraction", "inflationary"],
+        )
+        analysis["components"]["equity_bond"]["correlation_regime"] = "negative"
+        analysis["components"]["yield_curve"]["steepening_type"] = "mixed_steepener"
+
+        content = _generate_to_string(analysis)
+
+        assert "duration extension possible" in content
+
+    def test_unknown_correlation_duration_guidance_and_low_score_bar(self):
+        analysis = _make_analysis(
+            regime="contraction",
+            ambiguous=True,
+            tied_regimes=["contraction", "inflationary"],
+        )
+        analysis["components"]["equity_bond"]["correlation_regime"] = "unknown"
+        analysis["composite"]["component_scores"]["equity_bond"]["score"] = 25
+
+        content = _generate_to_string(analysis)
+
+        assert "Correlation regime is **unknown**" in content
+        assert "█░░░ 25" in content
+
+    def test_transition_triggers_use_steepening_specific_language(self):
+        analysis = _make_analysis(regime="transitional", tied_regimes=None)
+        analysis["components"]["yield_curve"]["steepening_type"] = "bear_steepener"
+
+        content = _generate_to_string(analysis)
+
+        assert "Yield curve steepening remains bear-type" in content
 
     def test_treasury_api_source_no_warning(self):
         """When yield curve uses treasury API, no proxy warning should appear in component section."""
