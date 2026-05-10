@@ -74,6 +74,19 @@ class TestRateLimitedGet:
             timeout=30,
         )
 
+    def test_enforces_short_interval_rate_limit(self, monkeypatch, mock_session):
+        monkeypatch.setattr(macro_fmp_client.time, "time", MagicMock(side_effect=[100.1, 100.2]))
+        sleep = MagicMock()
+        monkeypatch.setattr(macro_fmp_client.time, "sleep", sleep)
+        mock_session.get.return_value = _response(200, payload={"ok": True})
+        client = FMPClient(api_key=DUMMY_API_KEY)
+        client.last_call_time = 100.0
+
+        assert client._rate_limited_get("https://example.test/data") == {"ok": True}
+
+        assert sleep.call_count == 1
+        assert sleep.call_args.args[0] == pytest.approx(0.2)
+
     def test_rate_limit_retry_then_success(self, monkeypatch, mock_session):
         monkeypatch.setattr(
             macro_fmp_client.time,
