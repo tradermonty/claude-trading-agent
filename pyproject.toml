@@ -96,7 +96,7 @@ ignore-words-list = "trough,ore,cna,acn,blok,hims,pont,claus,theses"
 source = ["skills", "agent", "config"]
 
 [tool.coverage.report]
-fail_under = 98.23
+fail_under = 98.34
 precision = 2
 show_missing = true
 exclude_lines = [
