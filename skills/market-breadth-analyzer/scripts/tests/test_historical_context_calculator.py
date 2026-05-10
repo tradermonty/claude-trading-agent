@@ -1,6 +1,7 @@
 """Tests for Component 5: Historical Context (Percentile) Calculator."""
 
 from calculators.historical_context_calculator import (
+    _score_percentile,
     calculate_historical_percentile,
 )
 
@@ -44,6 +45,10 @@ class TestPercentileScoring:
         rows.append(make_row(Breadth_Index_8MA=0.20))
         result = calculate_historical_percentile(rows, _make_summary())
         assert result["base_score"] == 10
+
+    def test_percentile_score_60th_and_20th_boundaries(self):
+        assert _score_percentile(60) == 70
+        assert _score_percentile(20) == 30
 
 
 class TestExtremeAdjustments:

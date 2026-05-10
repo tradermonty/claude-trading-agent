@@ -1,7 +1,11 @@
 """Tests for Component 3: Peak/Trough Cycle Calculator."""
 
 import pytest
-from calculators.cycle_calculator import calculate_cycle_position
+from calculators.cycle_calculator import (
+    _calculate_score,
+    _generate_signal,
+    calculate_cycle_position,
+)
 
 
 class TestDataAvailability:
@@ -39,6 +43,16 @@ class TestDataAvailability:
         rows[-6]["Breadth_Index_8MA"] = 0.50
         result = calculate_cycle_position(rows)
         assert result["data_available"] is True
+
+    def test_unknown_marker_type_defaults_to_neutral(self):
+        assert (
+            _calculate_score("OTHER", days_since=12, ma8_trend="rising", extreme_trough=False) == 50
+        )
+
+    def test_unknown_marker_signal_is_neutral(self):
+        assert _generate_signal(None, None, "unknown", 50) == (
+            "NEUTRAL: No cycle marker in last 120 days"
+        )
 
 
 def _rows_with_marker(make_rows, marker_type: str, days_since: int, *, rising: bool, extreme=False):

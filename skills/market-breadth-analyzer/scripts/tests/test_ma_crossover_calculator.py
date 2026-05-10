@@ -1,6 +1,6 @@
 """Tests for Component 2: MA Crossover Calculator."""
 
-from calculators.ma_crossover_calculator import calculate_ma_crossover
+from calculators.ma_crossover_calculator import _score_gap, calculate_ma_crossover
 
 
 def _make_crossover_rows(make_row, n=10, ma8=0.60, ma200=0.50, ma8_5d_ago=None):
@@ -72,6 +72,9 @@ class TestGapScoring:
         rows = _make_crossover_rows(make_row, ma8=0.35, ma200=0.50)
         result = calculate_ma_crossover(rows)
         assert result["gap_score"] == 5  # gap=-0.15 < -0.10
+
+    def test_moderate_negative_gap(self):
+        assert _score_gap(-0.08) == 20
 
 
 class TestDirectionModifier:

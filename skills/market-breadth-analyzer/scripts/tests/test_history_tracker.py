@@ -32,6 +32,11 @@ class TestLoadHistory:
             json.dump(data, f)
         assert load_history(tmp_history) == data
 
+    def test_non_list_json_returns_empty(self, tmp_history):
+        with open(tmp_history, "w") as f:
+            json.dump({"data_date": "2025-01-01"}, f)
+        assert load_history(tmp_history) == []
+
 
 class TestAppendHistory:
     def test_append_creates_file(self, tmp_history):
