@@ -1,5 +1,6 @@
 """Tests for Sector Rotation Calculator (XLY/XLP)"""
 
+import calculators.sector_rotation_calculator as sector_rotation
 from calculators.sector_rotation_calculator import calculate_sector_rotation
 from test_helpers import make_monthly_history
 
@@ -9,6 +10,26 @@ class TestCalculateSectorRotation:
         result = calculate_sector_rotation([], [])
         assert result["score"] == 0
         assert result["data_available"] is False
+
+    def test_insufficient_monthly_data(self):
+        xly = make_monthly_history([180] * 6, start_year=2025)
+        xlp = make_monthly_history([75] * 6, start_year=2025)
+
+        result = calculate_sector_rotation(xly, xlp)
+
+        assert result["data_available"] is False
+        assert (
+            result["signal"] == "INSUFFICIENT DATA: Insufficient monthly data (need >= 12 months)"
+        )
+
+    def test_insufficient_ratio_data_when_dates_do_not_overlap(self):
+        xly = make_monthly_history([180] * 12, start_year=2025)
+        xlp = make_monthly_history([75] * 12, start_year=2023)
+
+        result = calculate_sector_rotation(xly, xlp)
+
+        assert result["data_available"] is False
+        assert result["signal"] == "INSUFFICIENT DATA: Insufficient ratio data"
 
     def test_stable_ratio_low_score(self):
         xly = make_monthly_history([180] * 24, start_year=2024)
@@ -58,6 +79,11 @@ class TestCalculateSectorRotation:
         for key in required_keys:
             assert key in result
         assert 0 <= result["score"] <= 100
+
+    def test_signal_descriptions_cover_score_bands(self):
+        assert sector_rotation._describe_signal(60, "risk_on", 2.4).startswith("TRANSITION")
+        assert sector_rotation._describe_signal(40, "risk_off", 2.4).startswith("SHIFTING")
+        assert sector_rotation._describe_signal(10, "neutral", 2.4).startswith("STABLE")
 
     def test_stale_crossover_reversal(self):
         """Stale golden cross with declining recent momentum → risk_off + reversing."""
