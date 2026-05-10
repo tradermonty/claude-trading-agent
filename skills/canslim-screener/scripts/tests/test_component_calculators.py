@@ -41,7 +41,11 @@ from market_calculator import (  # noqa: E402
     interpret_market_score,
     score_market_direction,
 )
-from new_highs_calculator import calculate_newness, score_newness  # noqa: E402
+from new_highs_calculator import (  # noqa: E402
+    calculate_newness,
+    interpret_newness_score,
+    score_newness,
+)
 from scorer import (  # noqa: E402
     calculate_composite_score,
     calculate_composite_score_phase2,
@@ -174,6 +178,12 @@ def test_newness_calculator_and_score_bands():
     assert score_newness(-12, False) == 60
     assert score_newness(-20, False) == 40
     assert score_newness(-30, False) == 20
+
+    assert "Exceptional" in interpret_newness_score(100, -0.2, True)
+    assert "Strong" in interpret_newness_score(80, -8.0, True)
+    assert "Acceptable" in interpret_newness_score(60, -12.0, False)
+    assert "Weak" in interpret_newness_score(40, -20.0, False)
+    assert "Poor" in interpret_newness_score(20, -30.0, False)
 
 
 def _volume_days(up_volume: int, down_volume: int) -> dict:
