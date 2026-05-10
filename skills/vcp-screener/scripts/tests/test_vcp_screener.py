@@ -18,7 +18,17 @@ import screen_vcp
 from calculators.pivot_proximity_calculator import calculate_pivot_proximity
 from calculators.relative_strength_calculator import calculate_relative_strength
 from calculators.trend_template_calculator import calculate_trend_template
-from calculators.vcp_pattern_calculator import _validate_vcp, calculate_vcp_pattern
+from calculators.vcp_pattern_calculator import (
+    _build_contractions_from,
+    _calculate_atr,
+    _find_swing_lows,
+    _get_pivot_price,
+    _identify_contractions,
+    _score_vcp,
+    _validate_vcp,
+    _zigzag_swing_points,
+    calculate_vcp_pattern,
+)
 from calculators.volume_pattern_calculator import calculate_volume_pattern
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import calculate_composite_score
@@ -134,6 +144,169 @@ class TestVCPValidation:
         contractions = _make_vcp_contractions([30, 15, 7, 3])
         result = _validate_vcp(contractions, total_days=120)
         assert result["valid"] is True
+
+    def test_t1_too_deep_flags_issue_without_invalidating(self):
+        contractions = _make_vcp_contractions([40, 20])
+        result = _validate_vcp(contractions, total_days=120)
+        assert result["valid"] is True
+        assert any("too deep" in issue for issue in result["issues"])
+
+    def test_subsequent_high_far_from_h1_is_reported(self):
+        contractions = _make_vcp_contractions([20, 10])
+        contractions[1]["high_price"] = 80.0
+        result = _validate_vcp(contractions, total_days=120)
+        assert any("from H1" in issue for issue in result["issues"])
+
+    def test_pattern_duration_too_short_invalid(self):
+        contractions = _make_vcp_contractions([20, 10])
+        contractions[1]["low_idx"] = 14
+        result = _validate_vcp(contractions, total_days=120)
+        assert result["valid"] is False
+        assert any("too short" in issue for issue in result["issues"])
+
+    def test_pattern_duration_too_long_is_warning_only(self):
+        contractions = _make_vcp_contractions([20, 10])
+        contractions[1]["low_idx"] = 400
+        result = _validate_vcp(contractions, total_days=500)
+        assert result["valid"] is True
+        assert any("too long" in issue for issue in result["issues"])
+
+
+class TestVCPPatternInternals:
+    def test_calculate_vcp_pattern_rejects_short_inputs(self):
+        result = calculate_vcp_pattern(_make_prices(29))
+        assert result["error"] == "Insufficient data (need 30+ days)"
+
+    def test_calculate_vcp_pattern_rejects_short_lookback_window(self):
+        result = calculate_vcp_pattern(_make_prices(40), lookback_days=29)
+        assert result["error"] == "Insufficient data in lookback window"
+
+    def test_calculate_atr_zero_for_flat_series(self):
+        highs = [100.0] * 20
+        lows = [100.0] * 20
+        closes = [100.0] * 20
+        assert _calculate_atr(highs, lows, closes) == 0.0
+
+    def test_zigzag_returns_empty_when_atr_is_zero(self):
+        highs = [100.0] * 20
+        lows = [100.0] * 20
+        closes = [100.0] * 20
+        dates = [f"day-{i}" for i in range(20)]
+        assert _zigzag_swing_points(highs, lows, closes, dates) == ([], [])
+
+    def test_find_swing_lows_detects_local_low(self):
+        lows = [10, 9, 8, 6, 8, 9, 10]
+        assert _find_swing_lows(lows, window=2) == [(3, 6)]
+
+    def test_identify_contractions_builds_successive_pairs(self):
+        swing_highs = [(2, 120.0), (8, 116.0), (14, 113.0)]
+        swing_lows = [(5, 100.0), (11, 108.0), (17, 110.0)]
+        highs = [100.0] * 20
+        lows = [90.0] * 20
+        dates = [f"day-{i}" for i in range(20)]
+
+        contractions = _identify_contractions(swing_highs, swing_lows, highs, lows, dates)
+
+        assert [c["label"] for c in contractions] == ["T1", "T2", "T3"]
+        assert contractions[0]["depth_pct"] == 16.67
+        assert contractions[-1]["low_date"] == "day-17"
+
+    def test_identify_contractions_returns_empty_without_highs_or_later_lows(self):
+        dates = [f"day-{i}" for i in range(5)]
+        assert _identify_contractions([], [(2, 95.0)], [100.0] * 5, [90.0] * 5, dates) == []
+        assert (
+            _identify_contractions([(3, 100.0)], [(1, 95.0)], [100.0] * 5, [90.0] * 5, dates) == []
+        )
+
+    def test_identify_contractions_handles_zero_high(self):
+        contractions = _identify_contractions(
+            [(1, 0.0)],
+            [(2, -1.0)],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, -1.0],
+            ["day-0", "day-1", "day-2"],
+        )
+        assert contractions[0]["depth_pct"] == 0
+
+    def test_build_contractions_skips_short_low_before_next_high(self):
+        contractions = _build_contractions_from(
+            (2, 120.0),
+            swing_highs=[(2, 120.0), (8, 116.0)],
+            swing_lows=[(4, 110.0), (6, 102.0), (11, 108.0)],
+            highs=[100.0] * 15,
+            lows=[90.0] * 15,
+            dates=[f"day-{i}" for i in range(15)],
+            min_contraction_days=4,
+        )
+
+        assert len(contractions) == 1
+        assert contractions[0]["low_idx"] == 6
+        assert contractions[0]["duration_days"] == 4
+
+    def test_build_contractions_breaks_when_short_low_crosses_next_high_boundary(self):
+        contractions = _build_contractions_from(
+            (2, 120.0),
+            swing_highs=[(2, 120.0), (5, 116.0)],
+            swing_lows=[(4, 110.0), (6, 102.0)],
+            highs=[100.0] * 10,
+            lows=[90.0] * 10,
+            dates=[f"day-{i}" for i in range(10)],
+            min_contraction_days=4,
+        )
+
+        assert contractions == []
+
+    def test_build_contractions_returns_empty_when_no_later_low(self):
+        contractions = _build_contractions_from(
+            (5, 120.0),
+            swing_highs=[(5, 120.0)],
+            swing_lows=[(2, 110.0)],
+            highs=[100.0] * 8,
+            lows=[90.0] * 8,
+            dates=[f"day-{i}" for i in range(8)],
+        )
+
+        assert contractions == []
+
+    def test_build_contractions_stops_when_right_shoulder_too_far_from_h1(self):
+        contractions = _build_contractions_from(
+            (2, 120.0),
+            swing_highs=[(2, 120.0), (8, 100.0)],
+            swing_lows=[(6, 102.0), (12, 95.0)],
+            highs=[100.0] * 15,
+            lows=[90.0] * 15,
+            dates=[f"day-{i}" for i in range(15)],
+            min_contraction_days=3,
+        )
+
+        assert len(contractions) == 1
+
+    def test_get_pivot_price_prefers_last_contraction_then_swing_high(self):
+        assert _get_pivot_price([{"high_price": 111.0}], [], [(1, 100.0)]) == 111.0
+        assert _get_pivot_price([], [], [(1, 100.0), (2, 105.0)]) == 105.0
+        assert _get_pivot_price([], [], []) is None
+
+    def test_score_vcp_invalid_patterns_get_partial_credit(self):
+        contractions = _make_vcp_contractions([20, 18, 17])
+        assert _score_vcp(contractions, {"valid": False}) == 40
+
+    def test_score_vcp_by_contraction_count_and_bonuses(self):
+        two = _make_vcp_contractions([20, 10])
+        three = _make_vcp_contractions([20, 7, 2])
+        four = _make_vcp_contractions([32, 10, 3, 1])
+
+        assert _score_vcp(two, {"valid": True, "contraction_ratios": [0.5], "t1_depth": 20}) == 60
+        assert (
+            _score_vcp(three, {"valid": True, "contraction_ratios": [0.35, 0.286], "t1_depth": 20})
+            == 100
+        )
+        assert (
+            _score_vcp(
+                four, {"valid": True, "contraction_ratios": [0.31, 0.3, 0.333], "t1_depth": 32}
+            )
+            == 100
+        )
+        assert _score_vcp([two[0]], {"valid": True, "contraction_ratios": [], "t1_depth": 20}) == 20
 
 
 # ===========================================================================
