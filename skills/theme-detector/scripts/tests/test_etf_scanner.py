@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
+import pytest
 from etf_scanner import ETFScanner
 
 
@@ -173,6 +174,50 @@ class TestFMPEndpointFallback:
         result = scanner._fmp_request("quote", "AAPL")
         assert result is None
         assert scanner.backend_stats()["fmp_failures"] == 2
+
+    @patch("etf_scanner.HAS_REQUESTS", False)
+    def test_no_requests_library_returns_none(self):
+        scanner = self._make_scanner()
+        assert scanner._fmp_request("quote", "AAPL") is None
+
+    def test_missing_api_key_returns_none(self):
+        scanner = ETFScanner(rate_limit_sec=0)
+        assert scanner._fmp_request("quote", "AAPL") is None
+
+    @patch("etf_scanner._requests_lib")
+    def test_disabled_stable_endpoint_is_skipped(self, mock_requests):
+        scanner = self._make_scanner()
+        stable_url = "https://financialmodelingprep.com/stable/quote"
+        scanner._disabled_endpoints.add(stable_url)
+        ok_resp = MagicMock(status_code=200)
+        ok_resp.json.return_value = [{"symbol": "AAPL"}]
+        mock_requests.get.return_value = ok_resp
+
+        result = scanner._fmp_request("quote", "AAPL")
+
+        assert result == [{"symbol": "AAPL"}]
+        assert "/api/v3/quote/AAPL" in mock_requests.get.call_args.args[0]
+
+    @patch("etf_scanner._requests_lib")
+    def test_endpoint_disabled_after_consecutive_failures(self, mock_requests):
+        scanner = self._make_scanner()
+        fail_resp = MagicMock(status_code=500)
+        mock_requests.get.return_value = fail_resp
+
+        for _ in range(scanner._ENDPOINT_FAILURE_THRESHOLD):
+            scanner._fmp_request("quote", "AAPL")
+
+        assert "https://financialmodelingprep.com/stable/quote" in scanner._disabled_endpoints
+
+    def test_rate_limit_sleeps_for_remaining_interval(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0.5)
+        scanner._last_request_time = 100.0
+        with (
+            patch("etf_scanner.time.time", side_effect=[100.2, 100.5]),
+            patch("etf_scanner.time.sleep") as sleep_mock,
+        ):
+            scanner._fmp_rate_limit()
+        assert sleep_mock.call_args.args[0] == pytest.approx(0.3)
 
 
 # ---------------------------------------------------------------------------
@@ -597,6 +642,36 @@ class TestETFVolumeRatioFMP:
 class TestBatchETFVolumeRatios:
     """Tests for the public batch_etf_volume_ratios method."""
 
+    def test_get_etf_volume_ratio_returns_fmp_result_when_available(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        fmp_result = {
+            "XLK": {"symbol": "XLK", "vol_20d": 100.0, "vol_60d": 80.0, "vol_ratio": 1.25}
+        }
+
+        with (
+            patch.object(scanner, "_batch_etf_volume_ratios_fmp", return_value=fmp_result),
+            patch.object(scanner, "_get_etf_volume_ratio_yfinance") as yf_mock,
+        ):
+            result = scanner.get_etf_volume_ratio("XLK")
+
+        assert result["vol_ratio"] == 1.25
+        yf_mock.assert_not_called()
+
+    def test_get_etf_volume_ratio_falls_back_when_fmp_missing(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        yf_result = {"symbol": "XLK", "vol_20d": None, "vol_60d": None, "vol_ratio": None}
+
+        with (
+            patch.object(scanner, "_batch_etf_volume_ratios_fmp", return_value={"XLK": {}}),
+            patch.object(
+                scanner, "_get_etf_volume_ratio_yfinance", return_value=yf_result
+            ) as yf_mock,
+        ):
+            result = scanner.get_etf_volume_ratio("XLK")
+
+        assert result is yf_result
+        yf_mock.assert_called_once_with("XLK")
+
     @patch("etf_scanner._requests_lib")
     def test_batch_returns_all_etfs(self, mock_requests):
         """Batch fetches volume ratios for multiple ETFs."""
@@ -616,6 +691,54 @@ class TestBatchETFVolumeRatios:
         result = scanner.batch_etf_volume_ratios(["XLK", "SMH"])
         assert "XLK" in result
         assert "SMH" in result
+
+    def test_empty_symbols_returns_empty_dict(self):
+        assert ETFScanner().batch_etf_volume_ratios([]) == {}
+
+    @patch("etf_scanner.HAS_YFINANCE", False)
+    def test_yfinance_unavailable_etf_volume_ratio_returns_empty_shape(self):
+        scanner = ETFScanner()
+        result = scanner._get_etf_volume_ratio_yfinance("XLK")
+        assert result == {"symbol": "XLK", "vol_20d": None, "vol_60d": None, "vol_ratio": None}
+
+    @patch("etf_scanner.HAS_YFINANCE", True)
+    def test_yfinance_etf_volume_ratio_handles_missing_or_short_data(self):
+        scanner = ETFScanner()
+        missing = pd.DataFrame({"Close": [1.0, 2.0]})
+        short = pd.DataFrame({"Volume": [1_000_000] * 10})
+
+        with patch.object(scanner, "_get_cached", side_effect=[missing, short]):
+            assert scanner._get_etf_volume_ratio_yfinance("NO_VOLUME")["vol_ratio"] is None
+            assert scanner._get_etf_volume_ratio_yfinance("SHORT")["vol_ratio"] is None
+
+    @patch("etf_scanner.HAS_YFINANCE", True)
+    def test_yfinance_etf_volume_ratio_computes_and_handles_exceptions(self):
+        scanner = ETFScanner()
+        data = pd.DataFrame({"Volume": [1_000_000 + i for i in range(60)]})
+        with patch.object(scanner, "_get_cached", return_value=data):
+            result = scanner._get_etf_volume_ratio_yfinance("XLK")
+        assert result["vol_20d"] is not None
+        assert result["vol_ratio"] is not None
+
+        with patch.object(scanner, "_get_cached", side_effect=Exception("boom")):
+            assert scanner._get_etf_volume_ratio_yfinance("ERR")["vol_ratio"] is None
+
+    @patch("etf_scanner.HAS_YFINANCE", True)
+    def test_batch_etf_volume_ratios_falls_back_to_yfinance_for_missing(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        fmp_ok = {"XLK": {"symbol": "XLK", "vol_20d": 100.0, "vol_60d": 80.0, "vol_ratio": 1.25}}
+        yf_data = {"symbol": "SMH", "vol_20d": 50.0, "vol_60d": 50.0, "vol_ratio": 1.0}
+
+        with (
+            patch.object(scanner, "_batch_etf_volume_ratios_fmp", return_value=fmp_ok),
+            patch.object(scanner, "_get_etf_volume_ratio_yfinance", return_value=yf_data),
+        ):
+            result = scanner.batch_etf_volume_ratios(["XLK", "SMH"])
+
+        assert result["XLK"]["vol_ratio"] == 1.25
+        assert result["SMH"]["vol_ratio"] == 1.0
+        assert scanner.backend_stats()["etf"]["yf_fallbacks"] == 1
+        assert scanner.backend_stats()["etf"]["yf_calls"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -726,6 +849,137 @@ class TestSymbolLevelFallback:
         results = scanner.batch_stock_metrics(["AAPL"])
         assert len(results) == 1
         assert scanner.backend_stats()["yf_calls"] == 1
+
+    @patch("etf_scanner.HAS_YFINANCE", False)
+    def test_yfinance_unavailable_stock_metrics_returns_empty_shapes(self):
+        scanner = ETFScanner()
+        result = scanner._batch_stock_metrics_yfinance(["AAPL", "MSFT"])
+        assert [row["symbol"] for row in result] == ["AAPL", "MSFT"]
+        assert all(row["rsi_14"] is None for row in result)
+
+    @patch("etf_scanner.HAS_YFINANCE", True)
+    @patch("etf_scanner.yf")
+    def test_yfinance_batch_download_exception_returns_empty_shapes(self, mock_yf):
+        scanner = ETFScanner()
+        mock_yf.download.side_effect = Exception("download failed")
+        result = scanner._batch_stock_metrics_yfinance(["AAPL"])
+        assert result == [
+            {
+                "symbol": "AAPL",
+                "rsi_14": None,
+                "dist_from_52w_high": None,
+                "dist_from_52w_low": None,
+                "pe_ratio": None,
+            }
+        ]
+
+    @patch("etf_scanner.HAS_YFINANCE", True)
+    @patch("etf_scanner.yf")
+    def test_yfinance_multi_symbol_handles_empty_short_and_exception_paths(self, mock_yf):
+        scanner = ETFScanner()
+        frames = {
+            "EMPTY": pd.DataFrame(),
+            "SHORT": pd.DataFrame({"Close": [1.0], "High": [1.0], "Low": [1.0]}),
+            "ERR": pd.DataFrame({"Open": [1.0, 2.0]}),
+        }
+        mock_yf.download.return_value = frames
+
+        result = scanner._batch_stock_metrics_yfinance(["EMPTY", "SHORT", "ERR"])
+
+        assert [row["symbol"] for row in result] == ["EMPTY", "SHORT", "ERR"]
+        assert all(row["rsi_14"] is None for row in result)
+
+    def test_batch_stock_metrics_merges_yfinance_fields_into_partial_fmp_result(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        fmp_result = [
+            {
+                "symbol": "AAPL",
+                "rsi_14": None,
+                "dist_from_52w_high": 0.1,
+                "dist_from_52w_low": None,
+                "pe_ratio": 30.0,
+            }
+        ]
+        yf_result = [
+            {
+                "symbol": "AAPL",
+                "rsi_14": 55.0,
+                "dist_from_52w_high": 0.2,
+                "dist_from_52w_low": 0.4,
+                "pe_ratio": 99.0,
+            }
+        ]
+
+        with (
+            patch.object(scanner, "_batch_stock_metrics_fmp", return_value=fmp_result),
+            patch.object(scanner, "_batch_stock_metrics_yfinance", return_value=yf_result),
+        ):
+            result = scanner.batch_stock_metrics(["AAPL"])
+
+        assert result[0]["rsi_14"] == 55.0
+        assert result[0]["dist_from_52w_high"] == 0.1
+        assert result[0]["dist_from_52w_low"] == 0.4
+        assert result[0]["pe_ratio"] == 30.0
+
+    def test_batch_stock_metrics_returns_empty_shape_when_all_backends_missing(self):
+        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        with (
+            patch.object(scanner, "_batch_stock_metrics_fmp", return_value=[]),
+            patch.object(scanner, "_batch_stock_metrics_yfinance", return_value=[]),
+        ):
+            result = scanner.batch_stock_metrics(["AAPL"])
+
+        assert result == [
+            {
+                "symbol": "AAPL",
+                "rsi_14": None,
+                "dist_from_52w_high": None,
+                "dist_from_52w_low": None,
+                "pe_ratio": None,
+            }
+        ]
+
+
+class TestSharedUtilityFallbacks:
+    def test_calculate_52w_distances_handles_empty_and_non_positive_close(self):
+        assert ETFScanner._calculate_52w_distances(
+            pd.Series([], dtype=float), pd.Series([], dtype=float), pd.Series([], dtype=float)
+        ) == {
+            "dist_from_52w_high": None,
+            "dist_from_52w_low": None,
+        }
+        assert ETFScanner._calculate_52w_distances(
+            pd.Series([0.0]),
+            pd.Series([10.0]),
+            pd.Series([0.0]),
+        ) == {"dist_from_52w_high": None, "dist_from_52w_low": None}
+
+    @patch("etf_scanner.yf")
+    def test_get_pe_ratio_handles_missing_and_exception(self, mock_yf):
+        scanner = ETFScanner()
+        ticker = MagicMock()
+        ticker.info = {}
+        mock_yf.Ticker.return_value = ticker
+        assert scanner._get_pe_ratio("AAPL") is None
+
+        mock_yf.Ticker.side_effect = Exception("ticker failed")
+        assert scanner._get_pe_ratio("MSFT") is None
+
+    @patch("etf_scanner.yf")
+    def test_get_cached_uses_cache_and_handles_download_failure(self, mock_yf):
+        scanner = ETFScanner()
+        data = pd.DataFrame({"Close": [1.0, 2.0]})
+        mock_yf.download.return_value = data
+
+        first = scanner._get_cached("AAPL", period="1mo")
+        second = scanner._get_cached("AAPL", period="1mo")
+
+        assert first is data
+        assert second is data
+        assert mock_yf.download.call_count == 1
+
+        mock_yf.download.side_effect = Exception("download failed")
+        assert scanner._get_cached("MSFT", period="1mo") is None
 
 
 # ---------------------------------------------------------------------------
