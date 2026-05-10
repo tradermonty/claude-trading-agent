@@ -11,6 +11,7 @@ import os
 import sys
 import tempfile
 
+import calculators.relative_strength_calculator as rs_calculator
 import pytest
 import screen_vcp
 from calculators.pivot_proximity_calculator import calculate_pivot_proximity
@@ -361,6 +362,41 @@ class TestRelativeStrength:
         sp500 = _make_prices(70, start=95, daily_change=0.0005)
         result = calculate_relative_strength(stock, sp500)
         assert result["score"] >= 60  # should outperform
+
+    def test_insufficient_sp500_data(self):
+        stock = _make_prices(70, start=100, daily_change=0.001)
+        result = calculate_relative_strength(stock, [])
+        assert result["score"] == 0
+        assert result["error"].startswith("Insufficient S&P 500")
+
+    def test_partial_period_details_and_adjclose_fallback(self):
+        stock = [{"adjClose": 110.0 - i * 0.5} for i in range(70)]
+        sp500 = [{"adjClose": 100.0 - i * 0.1} for i in range(70)]
+        result = calculate_relative_strength(stock, sp500)
+        assert result["error"] is None
+        assert any("Partial data" in detail.get("note", "") for detail in result["period_details"])
+
+    def test_no_periods_available_when_period_config_empty(self, monkeypatch):
+        monkeypatch.setattr(rs_calculator, "RS_PERIODS", [])
+        stock = _make_prices(70, start=100, daily_change=0.001)
+        sp500 = _make_prices(70, start=100, daily_change=0.001)
+        result = calculate_relative_strength(stock, sp500)
+        assert result["score"] == 0
+        assert result["error"].startswith("Unable to calculate weighted RS")
+
+    def test_relative_strength_helper_boundaries(self):
+        assert rs_calculator._period_return([100.0], 1) == 0.0
+        assert rs_calculator._period_return([100.0, 0.0], 1) == 0.0
+
+        assert rs_calculator._score_rs(55) == (100, 99)
+        assert rs_calculator._score_rs(35) == (95, 95)
+        assert rs_calculator._score_rs(25) == (90, 90)
+        assert rs_calculator._score_rs(7) == (70, 70)
+        assert rs_calculator._score_rs(2) == (60, 60)
+        assert rs_calculator._score_rs(-2) == (50, 50)
+        assert rs_calculator._score_rs(-7) == (40, 40)
+        assert rs_calculator._score_rs(-15) == (20, 25)
+        assert rs_calculator._score_rs(-25) == (0, 10)
 
 
 # ===========================================================================
@@ -1146,6 +1182,16 @@ class TestRSPercentileRanking:
         assert ranked["BAD"]["score"] == 0
         assert ranked["BAD"]["rs_percentile"] == 0
 
+    def test_all_none_weighted_rs(self):
+        """All invalid stocks should return zero scores without percentile ranking."""
+        from calculators.relative_strength_calculator import rank_relative_strength_universe
+
+        ranked = rank_relative_strength_universe(
+            {"BAD1": {"score": 50, "weighted_rs": None}, "BAD2": {"score": 50}}
+        )
+        assert ranked["BAD1"]["score"] == 0
+        assert ranked["BAD2"]["rs_percentile"] == 0
+
     def test_empty_dict(self):
         """Empty input returns empty dict."""
         from calculators.relative_strength_calculator import rank_relative_strength_universe
@@ -1663,6 +1709,31 @@ class TestRSSmallPopulation:
         assert ranked["S19"]["score"] >= 90
         # Percentile should also be uncapped
         assert ranked["S19"]["rs_percentile"] >= 95
+
+    def test_mid_size_population_cap(self):
+        """With 10-19 valid stocks, top score should cap at 90."""
+        from calculators.relative_strength_calculator import rank_relative_strength_universe
+
+        rs_map = {f"S{i}": {"score": 50, "weighted_rs": float(i)} for i in range(10)}
+        ranked = rank_relative_strength_universe(rs_map)
+        assert ranked["S9"]["score"] == 90
+        assert ranked["S9"]["rs_percentile"] == 94
+
+    def test_five_stock_population_cap(self):
+        """With 5-9 valid stocks, top score should cap at 80."""
+        from calculators.relative_strength_calculator import rank_relative_strength_universe
+
+        rs_map = {f"S{i}": {"score": 50, "weighted_rs": float(i)} for i in range(5)}
+        ranked = rank_relative_strength_universe(rs_map)
+        assert ranked["S4"]["score"] == 80
+        assert ranked["S4"]["rs_percentile"] == 84
+
+    def test_score_to_max_percentile_lower_thresholds(self):
+        assert rs_calculator._score_to_max_percentile(80) == 84
+        assert rs_calculator._score_to_max_percentile(60) == 59
+        assert rs_calculator._score_to_max_percentile(50) == 44
+        assert rs_calculator._score_to_max_percentile(40) == 29
+        assert rs_calculator._score_to_max_percentile(20) == 14
 
 
 class TestWeakestStrongestUpdate:
