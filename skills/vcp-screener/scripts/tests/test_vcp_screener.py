@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 import calculators.relative_strength_calculator as rs_calculator
+import calculators.trend_template_calculator as tt_calculator
 import pytest
 import screen_vcp
 from calculators.pivot_proximity_calculator import calculate_pivot_proximity
@@ -213,6 +214,48 @@ class TestTrendTemplate:
         # C3 should be evaluated (may pass or fail depending on synthetic data)
         c3 = result["criteria"].get("c3_sma200_trending_up", {})
         assert "Cannot verify" not in c3.get("detail", "")
+
+    def test_c1_uses_sma150_when_sma200_unavailable(self):
+        prices = _make_prices(175, start=100, daily_change=0.0)
+        quote = {"price": 120, "yearHigh": 125, "yearLow": 80}
+        result = calculate_trend_template(prices, quote, rs_rank=85)
+        c1 = result["criteria"]["c1_price_above_sma150_200"]
+        assert c1["passed"] is True
+        assert "SMA150" in c1["detail"]
+        assert "SMA200" not in c1["detail"]
+
+    def test_short_but_valid_data_reports_unavailable_long_term_criteria(self):
+        prices = _make_prices(75, start=100, daily_change=0.0)
+        quote = {"price": 120, "yearHigh": 0, "yearLow": 0}
+        result = calculate_trend_template(prices, quote)
+        assert result["criteria"]["c1_price_above_sma150_200"]["detail"] == (
+            "Insufficient data for SMA150"
+        )
+        assert result["criteria"]["c3_sma200_trending_up"]["detail"] == "Insufficient data"
+        assert result["criteria"]["c5_25pct_above_52w_low"]["detail"] == (
+            "52-week low data unavailable"
+        )
+        assert result["criteria"]["c6_within_25pct_52w_high"]["detail"] == (
+            "52-week high data unavailable"
+        )
+
+    def test_c3_handles_missing_prior_sma200_comparison(self, monkeypatch):
+        calls = []
+
+        def fake_sma(prices, period):
+            calls.append((len(prices), period))
+            if len(calls) == 3:
+                return None
+            return 100.0
+
+        monkeypatch.setattr(tt_calculator, "_sma", fake_sma)
+        prices = _make_prices(222, start=100, daily_change=0.0)
+        quote = {"price": 120, "yearHigh": 125, "yearLow": 80}
+        result = calculate_trend_template(prices, quote)
+        assert result["criteria"]["c3_sma200_trending_up"] == {
+            "passed": False,
+            "detail": "Insufficient data for 22d SMA200 comparison",
+        }
 
 
 # ===========================================================================
@@ -2702,7 +2745,9 @@ class TestAnalyzeStockNewFields:
 # ---------------------------------------------------------------------------
 
 from calculators.trend_template_calculator import (
+    _calculate_extended_penalty,
     _calculate_sma200_penalty,
+    _sma,
 )
 
 
@@ -2749,6 +2794,19 @@ class TestSMA200Penalty:
         # max_extension=30 → excess=5 at 35% above → tier −10
         penalty, dist = _calculate_sma200_penalty(price=135.0, sma200=100.0, max_extension=30.0)
         assert penalty == -10
+
+    def test_extended_penalty_no_sma50(self):
+        penalty, dist = _calculate_extended_penalty(price=100.0, sma50=None)
+        assert penalty == 0
+        assert dist is None
+
+    def test_extended_penalty_zero_sma50(self):
+        penalty, dist = _calculate_extended_penalty(price=100.0, sma50=0.0)
+        assert penalty == 0
+        assert dist is None
+
+    def test_sma_requires_enough_prices(self):
+        assert _sma([1.0, 2.0], 3) is None
 
     def test_trend_template_returns_sma200_penalty_field(self):
         prices = _make_prices(250, start=100.0, daily_change=0.001)
