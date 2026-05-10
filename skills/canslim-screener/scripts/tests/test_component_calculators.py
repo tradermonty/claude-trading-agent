@@ -11,6 +11,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 sys.path.insert(0, CALCULATORS_DIR)
 
 import institutional_calculator  # noqa: E402
+import market_calculator  # noqa: E402
 from earnings_calculator import (  # noqa: E402
     calculate_quarterly_growth,
     detect_earnings_acceleration,
@@ -32,6 +33,12 @@ from leadership_calculator import (  # noqa: E402
     calculate_leadership,
     calculate_sector_relative_strength,
     score_leadership,
+)
+from market_calculator import (  # noqa: E402
+    calculate_ema,
+    calculate_market_direction,
+    interpret_market_score,
+    score_market_direction,
 )
 from new_highs_calculator import calculate_newness, score_newness  # noqa: E402
 from scorer import (  # noqa: E402
@@ -241,6 +248,49 @@ def test_leadership_success_fallback_errors_and_sector_rank():
     sector = calculate_sector_relative_strength(50, [10, 20, 30, 40])
     assert sector["sector_rank"] == 1
     assert sector["is_sector_leader"] is True
+
+
+def test_market_direction_input_errors_and_ema_fallback():
+    assert calculate_market_direction({})["error"] == "S&P 500 quote data missing"
+    assert calculate_market_direction({"price": 0})["error"] == "S&P 500 price missing"
+
+    assert calculate_ema([10.0, 20.0], period=50) == 15.0
+    assert calculate_ema([100.0] * 60, period=50) == 100.0
+
+    fallback = calculate_market_direction({"price": 100.0}, sp500_prices=[{"close": 100.0}] * 49)
+    assert fallback["trend"] == "strong_uptrend"
+    assert fallback["sp500_ema_50"] == 98.0
+    assert (
+        calculate_market_direction({"price": 100.0}, vix_quote={"price": 12.0})["vix_level"] == 12.0
+    )
+
+
+def test_market_direction_trend_boundaries(monkeypatch):
+    monkeypatch.setattr(market_calculator, "calculate_ema", lambda prices, period=50: 100.0)
+    prices = [{"close": 100.0}] * 50
+
+    assert calculate_market_direction({"price": 101.0}, prices)["trend"] == "uptrend"
+    assert calculate_market_direction({"price": 99.0}, prices)["trend"] == "choppy"
+    assert calculate_market_direction({"price": 97.0}, prices)["trend"] == "downtrend"
+
+    bear = calculate_market_direction({"price": 94.0}, prices)
+    assert bear["trend"] == "bear_market"
+    assert bear["score"] == 0
+    assert "BEAR MARKET" in bear["warning"]
+
+
+def test_market_score_vix_adjustments_and_interpretation_bands():
+    assert score_market_direction("strong_uptrend", None) == 90
+    assert score_market_direction("strong_uptrend", 10.0) == 100
+    assert score_market_direction("uptrend", None) == 70
+    assert score_market_direction("choppy", None) == 40
+    assert score_market_direction("downtrend", None) == 20
+    assert score_market_direction("bear_market", None) == 0
+    assert score_market_direction("strong_uptrend", 35.0) == 0
+
+    assert "Early uptrend" in interpret_market_score(50, "uptrend", 0.5, None)
+    assert "Downtrend forming" in interpret_market_score(10, "downtrend", -3.0, 22.5)
+    assert "Bear market" in interpret_market_score(0, "bear_market", -8.0, 35.0)
 
 
 def _holders(count: int, *, shares_each: int = 1_000_000, superinvestors: int = 0):
