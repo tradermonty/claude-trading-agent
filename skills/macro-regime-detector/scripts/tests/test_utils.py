@@ -1,6 +1,133 @@
 """Tests for determine_direction utility function"""
 
-from calculators.utils import determine_direction
+import pytest
+from calculators.utils import (
+    calculate_ratio,
+    compute_percentile,
+    compute_roc,
+    compute_rolling_correlation,
+    compute_sma,
+    detect_crossover,
+    determine_direction,
+    downsample_to_monthly,
+    score_transition_signal,
+)
+
+
+class TestSeriesUtilities:
+    def test_downsample_empty_and_skips_invalid_bars(self):
+        assert downsample_to_monthly([]) == []
+
+        result = downsample_to_monthly(
+            [
+                {"date": "", "close": 100},
+                {"date": "2026-01-31", "close": 0},
+                {"date": "2026-01-30", "adjClose": 101, "close": 100},
+                {"date": "2026-01-15", "close": 99},
+                {"date": "2025-12-31", "close": 98},
+            ]
+        )
+
+        assert result == [
+            {"date": "2026-01-30", "close": 101},
+            {"date": "2025-12-31", "close": 98},
+        ]
+
+    def test_calculate_ratio_skips_missing_and_zero_denominator(self):
+        numerator = [
+            {"date": "2026-02-28", "close": 12},
+            {"date": "2026-01-31", "close": 10},
+            {"date": "2025-12-31", "close": 8},
+        ]
+        denominator = [
+            {"date": "2026-02-28", "close": 0},
+            {"date": "2026-01-31", "close": 5},
+        ]
+
+        assert calculate_ratio(numerator, denominator) == [{"date": "2026-01-31", "value": 2.0}]
+
+    def test_compute_sma_requires_full_period(self):
+        assert compute_sma([1, 2], 3) is None
+        assert compute_sma([1, 2, 3], 3) == 2
+
+    def test_detect_crossover_short_series_and_zero_long_average(self):
+        assert detect_crossover([1, 2, 3], short_period=2, long_period=4) == {
+            "type": "none",
+            "bars_ago": None,
+            "gap_pct": None,
+        }
+
+        result = detect_crossover([0] * 16, short_period=2, long_period=4)
+        assert result == {"type": "converging", "bars_ago": None, "gap_pct": 0}
+
+    def test_detect_crossover_golden_death_converging_and_none(self):
+        golden = detect_crossover([10, 10, 10, 10, 1, 1, 1, 1, 1, 1], short_period=2, long_period=4)
+        assert golden["type"] == "golden_cross"
+
+        death = detect_crossover(
+            [1, 1, 1, 1, 10, 10, 10, 10, 10, 10], short_period=2, long_period=4
+        )
+        assert death["type"] == "death_cross"
+
+        converging = detect_crossover([1.0] * 16, short_period=3, long_period=6)
+        assert converging["type"] == "converging"
+
+        no_cross = detect_crossover([10, 9, 8, 7, 6, 5, 4, 3, 2, 1], short_period=2, long_period=4)
+        assert no_cross["type"] == "none"
+
+    def test_compute_roc_and_percentile_edge_cases(self):
+        assert compute_roc([1, 2, 3], 3) is None
+        assert compute_roc([1, 2, 0], 2) is None
+        assert compute_roc([120, 100], 1) == 20
+        assert compute_percentile([], 1) is None
+        assert compute_percentile([1, 2, 3, 4], 3) == 50
+
+    def test_compute_rolling_correlation_edge_cases(self):
+        assert compute_rolling_correlation([1, 2], [1, 2], 3) is None
+        assert compute_rolling_correlation([1, 1, 1], [1, 2, 3], 3) == 0.0
+        assert compute_rolling_correlation([1, 2, 3], [1, 2, 3], 3) == pytest.approx(1.0)
+
+    def test_score_transition_signal_branches(self):
+        assert (
+            score_transition_signal(
+                {"type": "golden_cross", "bars_ago": 6, "gap_pct": 2.0},
+                roc_short=1.0,
+                roc_long=2.0,
+                sma_short=102,
+                sma_long=100,
+            )
+            == 50
+        )
+        assert (
+            score_transition_signal(
+                {"type": "converging", "bars_ago": None, "gap_pct": 0.2},
+                roc_short=4.0,
+                roc_long=3.0,
+                sma_short=100.2,
+                sma_long=100,
+            )
+            == 30
+        )
+        assert (
+            score_transition_signal(
+                {"type": "none", "bars_ago": None, "gap_pct": None},
+                roc_short=5.0,
+                roc_long=-5.0,
+                sma_short=None,
+                sma_long=None,
+            )
+            == 30
+        )
+        assert (
+            score_transition_signal(
+                {"type": "none", "bars_ago": None, "gap_pct": None},
+                roc_short=-5.0,
+                roc_long=5.0,
+                sma_short=None,
+                sma_long=None,
+            )
+            == 30
+        )
 
 
 class TestDetermineDirection:
