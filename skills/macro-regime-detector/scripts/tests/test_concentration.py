@@ -1,5 +1,6 @@
 """Tests for Market Concentration Calculator (RSP/SPY)"""
 
+import calculators.concentration_calculator as concentration
 from calculators.concentration_calculator import calculate_concentration
 from test_helpers import make_monthly_history
 
@@ -15,6 +16,15 @@ class TestCalculateConcentration:
         spy = make_monthly_history([100] * 6, start_year=2025)
         result = calculate_concentration(rsp, spy)
         assert result["data_available"] is False
+
+    def test_insufficient_ratio_data_when_dates_do_not_overlap(self):
+        rsp = make_monthly_history([100] * 12, start_year=2025)
+        spy = make_monthly_history([100] * 12, start_year=2023)
+
+        result = calculate_concentration(rsp, spy)
+
+        assert result["data_available"] is False
+        assert result["signal"] == "INSUFFICIENT DATA: Insufficient ratio data"
 
     def test_stable_ratio_low_score(self):
         # Flat ratio = no transition signal
@@ -76,3 +86,109 @@ class TestCalculateConcentration:
         assert "monthly_points" in result
 
         assert 0 <= result["score"] <= 100
+
+    def test_death_cross_direction_is_concentrating(self, monkeypatch):
+        monkeypatch.setattr(
+            concentration,
+            "detect_crossover",
+            lambda values, short_period, long_period: {
+                "type": "death_cross",
+                "bars_ago": 0,
+                "gap_pct": -1.2,
+            },
+        )
+        monkeypatch.setattr(
+            concentration,
+            "compute_roc",
+            lambda values, period: -2.5 if period == 3 else -5.0,
+        )
+
+        rsp = make_monthly_history([100 + i for i in range(24)], start_year=2024)
+        spy = make_monthly_history([100] * 24, start_year=2024)
+
+        result = calculate_concentration(rsp, spy)
+
+        assert result["direction"] == "concentrating"
+        assert result["momentum_qualifier"] == "confirmed"
+
+    def test_stale_crossover_uses_reversing_momentum_direction(self, monkeypatch):
+        monkeypatch.setattr(
+            concentration,
+            "detect_crossover",
+            lambda values, short_period, long_period: {
+                "type": "golden_cross",
+                "bars_ago": 4,
+                "gap_pct": 1.2,
+            },
+        )
+        monkeypatch.setattr(
+            concentration,
+            "compute_roc",
+            lambda values, period: -2.5 if period == 3 else 5.0,
+        )
+
+        rsp = make_monthly_history([100 + i for i in range(24)], start_year=2024)
+        spy = make_monthly_history([100] * 24, start_year=2024)
+
+        result = calculate_concentration(rsp, spy)
+
+        assert result["direction"] == "concentrating"
+        assert result["momentum_qualifier"] == "reversing"
+
+    def test_recent_crossover_with_contradicting_momentum_is_fading(self, monkeypatch):
+        monkeypatch.setattr(
+            concentration,
+            "detect_crossover",
+            lambda values, short_period, long_period: {
+                "type": "golden_cross",
+                "bars_ago": 1,
+                "gap_pct": 1.2,
+            },
+        )
+        monkeypatch.setattr(
+            concentration,
+            "compute_roc",
+            lambda values, period: -2.5 if period == 3 else 5.0,
+        )
+
+        rsp = make_monthly_history([100 + i for i in range(24)], start_year=2024)
+        spy = make_monthly_history([100] * 24, start_year=2024)
+
+        result = calculate_concentration(rsp, spy)
+
+        assert result["direction"] == "broadening"
+        assert result["momentum_qualifier"] == "fading"
+
+    def test_unknown_direction_when_smas_are_unavailable(self, monkeypatch):
+        monkeypatch.setattr(
+            concentration,
+            "detect_crossover",
+            lambda values, short_period, long_period: {
+                "type": "none",
+                "bars_ago": None,
+                "gap_pct": None,
+            },
+        )
+        monkeypatch.setattr(concentration, "compute_sma", lambda values, period: None)
+
+        rsp = make_monthly_history([100 + i for i in range(24)], start_year=2024)
+        spy = make_monthly_history([100] * 24, start_year=2024)
+
+        result = calculate_concentration(rsp, spy)
+
+        assert result["direction"] == "unknown"
+        assert result["sma_6m"] is None
+        assert result["sma_12m"] is None
+
+    def test_signal_descriptions_cover_transition_score_bands(self):
+        crossover = {"type": "golden_cross", "bars_ago": 0, "gap_pct": 1.2}
+
+        assert concentration._describe_signal(80, crossover, 1.0, 2.0, 1.0).startswith(
+            "STRONG TRANSITION"
+        )
+        assert concentration._describe_signal(60, crossover, 1.0, 2.0, 1.0).startswith(
+            "TRANSITION SIGNAL"
+        )
+        assert concentration._describe_signal(40, crossover, 1.0, 2.0, 1.0).startswith(
+            "TRANSITION ZONE"
+        )
