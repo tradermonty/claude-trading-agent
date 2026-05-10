@@ -222,6 +222,20 @@ class TestShapeValidation:
         result = client.get_historical_prices("^GSPC", days=80)
         assert result == v3_data
 
+    def test_historical_rejects_dict_without_historical_payload(self):
+        """A truthy dict without historical data is skipped before fallback succeeds."""
+        client = _make_client()
+        stable_resp = _mock_response(200, {"symbol": "^GSPC", "note": "metadata only"})
+        v3_data = {"symbol": "^GSPC", "historical": [{"close": 5000}]}
+        v3_resp = _mock_response(200, v3_data)
+
+        client.session.get = MagicMock(side_effect=[stable_resp, v3_resp])
+
+        result = client.get_historical_prices("^GSPC", days=80)
+
+        assert result == v3_data
+        assert client.session.get.call_count == 2
+
 
 # ---------------------------------------------------------------------------
 # Symbol mismatch protection (3 tests)
@@ -263,6 +277,40 @@ class TestSymbolMismatch:
         result = client.get_quote("^GSPC,^VIX")
         assert result == batch_data
         assert client.session.get.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker behavior
+# ---------------------------------------------------------------------------
+
+
+class TestEndpointCircuitBreaker:
+    """Verify repeated fallback failures disable endpoint attempts."""
+
+    def test_repeated_endpoint_failures_disable_endpoint(self):
+        client = _make_client()
+        client._ENDPOINT_FAILURE_THRESHOLD = 2
+        client._rate_limited_get = MagicMock(return_value=None)
+
+        assert client._request_with_fallback("quote", "^GSPC") is None
+        assert client._request_with_fallback("quote", "^GSPC") is None
+
+        stable_url = "https://financialmodelingprep.com/stable/quote"
+        v3_url = "https://financialmodelingprep.com/api/v3/quote"
+        assert stable_url in client._disabled_endpoints
+        assert v3_url in client._disabled_endpoints
+
+    def test_disabled_endpoint_is_skipped_and_next_endpoint_can_succeed(self):
+        client = _make_client()
+        stable_url = "https://financialmodelingprep.com/stable/quote"
+        client._disabled_endpoints.add(stable_url)
+        client._rate_limited_get = MagicMock(return_value=[{"symbol": "^GSPC", "price": 5000}])
+
+        result = client._request_with_fallback("quote", "^GSPC")
+
+        assert result == [{"symbol": "^GSPC", "price": 5000}]
+        called_url = client._rate_limited_get.call_args.args[0]
+        assert called_url == "https://financialmodelingprep.com/api/v3/quote/^GSPC"
 
 
 # ---------------------------------------------------------------------------

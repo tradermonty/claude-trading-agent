@@ -18,7 +18,7 @@ import time
 
 try:
     import requests
-except ImportError:
+except ImportError:  # pragma: no cover - import-time dependency guard
     print("ERROR: requests library not found. Install with: pip install requests", file=sys.stderr)
     sys.exit(1)
 
@@ -413,7 +413,7 @@ class FMPClient:
         }
 
 
-def test_client():
+def test_client():  # pragma: no cover - manual live API smoke test
     """Test FMP client with sample queries"""
     print("Testing FMP Client...")
 
