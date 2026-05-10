@@ -324,9 +324,9 @@ class TestCallerRegression:
     def test_canslim_exits_on_quote_failure(self, tmp_path):
         """get_quote("^GSPC") → None causes sys.exit(1)."""
         with patch.dict(os.environ, {"FMP_API_KEY": "test_key"}):  # pragma: allowlist secret
-            from fmp_client import FMPClient
+            import screen_canslim
 
-            with patch.object(FMPClient, "get_quote", return_value=None):
+            with patch.object(screen_canslim.FMPClient, "get_quote", return_value=None):
                 with patch(
                     "sys.argv",
                     [
@@ -337,8 +337,6 @@ class TestCallerRegression:
                         str(tmp_path),
                     ],
                 ):
-                    import screen_canslim
-
                     with pytest.raises(SystemExit) as exc_info:
                         screen_canslim.main()
                     assert exc_info.value.code == 1
@@ -346,7 +344,7 @@ class TestCallerRegression:
     def test_canslim_continues_on_historical_failure(self, capsys, tmp_path):
         """get_historical_prices("^GSPC") → None prints EMA fallback warning and continues."""
         with patch.dict(os.environ, {"FMP_API_KEY": "test_key"}):  # pragma: allowlist secret
-            from fmp_client import FMPClient
+            import screen_canslim
 
             mock_quote = [
                 {
@@ -367,11 +365,13 @@ class TestCallerRegression:
                 return mock_quote
 
             with (
-                patch.object(FMPClient, "get_quote", side_effect=mock_get_quote),
-                patch.object(FMPClient, "get_historical_prices", return_value=None),
-                patch.object(FMPClient, "get_income_statement", return_value=None),
-                patch.object(FMPClient, "get_profile", return_value=None),
-                patch.object(FMPClient, "get_institutional_holders", return_value=None),
+                patch.object(screen_canslim.FMPClient, "get_quote", side_effect=mock_get_quote),
+                patch.object(screen_canslim.FMPClient, "get_historical_prices", return_value=None),
+                patch.object(screen_canslim.FMPClient, "get_income_statement", return_value=None),
+                patch.object(screen_canslim.FMPClient, "get_profile", return_value=None),
+                patch.object(
+                    screen_canslim.FMPClient, "get_institutional_holders", return_value=None
+                ),
                 patch(
                     "sys.argv",
                     [
@@ -385,8 +385,6 @@ class TestCallerRegression:
                     ],
                 ),
             ):
-                import screen_canslim
-
                 # Should NOT raise SystemExit — historical failure is non-fatal
                 try:
                     screen_canslim.main()
