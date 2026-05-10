@@ -32,6 +32,7 @@ from institutional_calculator import (  # noqa: E402
 from leadership_calculator import (  # noqa: E402
     calculate_leadership,
     calculate_sector_relative_strength,
+    interpret_leadership,
     score_leadership,
 )
 from market_calculator import (  # noqa: E402
@@ -248,6 +249,46 @@ def test_leadership_success_fallback_errors_and_sector_rank():
     sector = calculate_sector_relative_strength(50, [10, 20, 30, 40])
     assert sector["sector_rank"] == 1
     assert sector["is_sector_leader"] is True
+
+
+def test_leadership_error_and_benchmark_quality_paths():
+    malformed_prices = [{"date": None, "close": 100.0} for _ in range(50)]
+    malformed = calculate_leadership(malformed_prices)
+    assert malformed["error"].startswith("Price calculation error")
+
+    stock = _price_series(100, 120)
+    descending_benchmark = calculate_leadership(stock, _price_series(100, 110, descending=True))
+    assert descending_benchmark["sp500_52w_performance"] == 10.0
+
+    invalid_benchmark = [{"date": None, "close": 100.0} for _ in range(50)]
+    benchmark_error = calculate_leadership(stock, invalid_benchmark)
+    assert benchmark_error["quality_warning"] == "S&P 500 performance calculation failed"
+    assert benchmark_error["sp500_52w_performance"] is None
+
+    zero_start_benchmark = [{"date": f"2025-01-{i:02d}", "close": 0.0} for i in range(1, 51)]
+    benchmark_unavailable = calculate_leadership(stock, zero_start_benchmark)
+    assert benchmark_unavailable["quality_warning"] == (
+        "Using absolute performance (S&P 500 comparison unavailable)"
+    )
+
+
+def test_leadership_score_thresholds_and_penalty():
+    assert score_leadership(55, True) == (100, 99)
+    assert score_leadership(25, True) == (90, 90)
+    assert score_leadership(2, True) == (60, 60)
+    assert score_leadership(-2, True) == (50, 50)
+
+    assert score_leadership(55, False) == (80, 89)
+    assert score_leadership(-2, False) == (40, 45)
+
+
+def test_leadership_interpretation_periods_ratings_and_signs():
+    assert "52-week return +10.0%" in interpret_leadership(95, 10, 5, 5, 250)
+    assert "9-month return -1.0%" in interpret_leadership(85, -1, 2, -3, 180)
+    assert "quarterly" in interpret_leadership(65, 3, None, 3, 90)
+    assert "50-day" in interpret_leadership(45, 0, 1, -1, 50)
+    assert "Laggard" in interpret_leadership(25, -10, 5, -15, 60)
+    assert "Weak" in interpret_leadership(0, -30, 5, -35, 60)
 
 
 def test_market_direction_input_errors_and_ema_fallback():
