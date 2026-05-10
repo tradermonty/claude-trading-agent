@@ -1,6 +1,10 @@
 """Tests for Component 1: Trend Level Calculator — 8MA direction modifier."""
 
-from calculators.trend_level_calculator import calculate_breadth_level_trend
+from calculators.trend_level_calculator import (
+    _generate_signal,
+    _score_8ma_level,
+    calculate_breadth_level_trend,
+)
 
 
 def _make_direction_rows(make_row, n, ma8_5d_ago, ma8_latest, **kwargs):
@@ -12,6 +16,14 @@ def _make_direction_rows(make_row, n, ma8_5d_ago, ma8_latest, **kwargs):
 
 class TestDirectionModifier:
     """8MA direction modifier tests."""
+
+    def test_no_data_returns_unavailable_result(self):
+        result = calculate_breadth_level_trend([])
+        assert result == {
+            "score": 50,
+            "signal": "NO DATA: No breadth data available",
+            "data_available": False,
+        }
 
     def test_falling_high_level_penalty(self, make_row):
         """8MA falling from high level (>0.60) -> -10."""
@@ -107,3 +119,13 @@ class TestDirectionModifierBoundary:
         result = calculate_breadth_level_trend(rows)
         assert result["ma8_direction"] == "rising"
         assert result["direction_modifier"] == 0
+
+
+class TestLevelScoringAndSignals:
+    def test_score_8ma_level_upper_and_lower_bands(self):
+        assert _score_8ma_level(0.70) == 95
+        assert _score_8ma_level(0.20) == 20
+
+    def test_generate_signal_weak_band(self):
+        signal = _generate_signal(ma8=0.25, trend=-1, score=25)
+        assert signal == "WEAK: 8MA=0.250 in downtrend - deteriorating breadth"
