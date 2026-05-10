@@ -111,6 +111,14 @@ class TestShortData:
         result = calculate_divergence(rows)
         assert result["window_20d"]["lookback_days"] == 20
 
+    def test_invalid_past_price_returns_neutral_window(self, make_row):
+        rows = _make_divergence_rows(make_row, 80)
+        rows[-60]["S&P500_Price"] = 0
+        result = calculate_divergence(rows)
+        assert result["window_60d"]["score"] == 50
+        assert result["window_60d"]["divergence_type"] == "Invalid data"
+        assert result["divergence_type"] == "Invalid data"
+
 
 class TestNearFlat:
     """Near-flat classification for noise-level movements."""
@@ -144,3 +152,12 @@ class TestNearFlat:
 
         score, label = _score_divergence(0.5, 0.005)
         assert "Near-flat" not in label
+
+    def test_divergence_score_branches(self):
+        from calculators.divergence_calculator import _score_divergence
+
+        assert _score_divergence(2.0, -0.04) == (25, "Moderate bearish divergence")
+        assert _score_divergence(-4.0, 0.06) == (80, "Strong bullish divergence")
+        assert _score_divergence(-2.0, 0.04) == (65, "Moderate bullish divergence")
+        assert _score_divergence(-2.0, -0.04) == (30, "Consistent decline (both falling)")
+        assert _score_divergence(2.0, 0.0) == (50, "Mixed signals")
