@@ -206,6 +206,14 @@ def test_supply_demand_success_errors_and_bands():
     assert result["score"] == 100
     assert result["accumulation_detected"] is True
 
+    zero_down_volume = calculate_supply_demand(_volume_days(up_volume=200, down_volume=0))
+    assert zero_down_volume["up_down_ratio"] == 5.0
+    assert zero_down_volume["score"] == 100
+
+    with_incomplete_day = _volume_days(up_volume=200, down_volume=100)
+    with_incomplete_day["historical"][0] = {"close": None, "volume": None}
+    assert calculate_supply_demand(with_incomplete_day)["score"] == 100
+
     assert calculate_supply_demand({})["error"] == "No historical price data provided"
     assert calculate_supply_demand({"historical": []})["error"].startswith("Insufficient data")
     flat = {"historical": [{"close": 100, "volume": 100} for _ in range(60)]}
@@ -216,7 +224,11 @@ def test_supply_demand_success_errors_and_bands():
     assert score_supply_demand(0.8) == 40
     assert score_supply_demand(0.6) == 20
     assert score_supply_demand(0.4) == 0
+    assert "Accumulation" in interpret_supply_demand(1.7, True)
+    assert "Neutral/Weak Accumulation" in interpret_supply_demand(1.2, False)
+    assert "Neutral/Weak Distribution" in interpret_supply_demand(0.8, False)
     assert "Distribution" in interpret_supply_demand(0.6, False)
+    assert "Strong Distribution" in interpret_supply_demand(0.4, False)
 
 
 def _price_series(start: float, end: float, days: int = 60, *, descending: bool = False):
