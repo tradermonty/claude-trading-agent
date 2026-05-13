@@ -257,3 +257,68 @@ class TestAttachNewSkillsToAgent:
         bootstrap.attach_new_skills_to_agent(client, "agent_id_888", [], replacements={})
         client.beta.agents.retrieve.assert_not_called()
         client.beta.agents.update.assert_not_called()
+
+    def test_orphan_skill_id_in_desired_is_attached(self) -> None:
+        # Agent has skill_a only, but the caller's desired list says skill_a
+        # AND skill_orphan should be attached. The orphan must be reconciled
+        # in a single agents.update call. This guards the silent-broken
+        # case where a skill_id was written to .env (Path A) but its
+        # initial agents.update never ran.
+        client = MagicMock()
+        existing = MagicMock()
+        existing.skill_id = "skill_a"
+        client.beta.agents.retrieve.return_value = MagicMock(version=3, skills=[existing])
+
+        bootstrap.attach_new_skills_to_agent(
+            client,
+            "agent_id_orphan",
+            new_skill_ids=[],
+            replacements={},
+            desired_skill_ids=["skill_a", "skill_orphan"],
+        )
+
+        client.beta.agents.update.assert_called_once()
+        kwargs = client.beta.agents.update.call_args.kwargs
+        skill_ids = [s["skill_id"] for s in kwargs["skills"]]
+        assert skill_ids == ["skill_a", "skill_orphan"]
+        assert kwargs["version"] == 3
+
+    def test_no_op_when_desired_already_all_attached(self) -> None:
+        # All desired skills are already attached → must not call update.
+        client = MagicMock()
+        a = MagicMock()
+        a.skill_id = "skill_a"
+        b = MagicMock()
+        b.skill_id = "skill_b"
+        client.beta.agents.retrieve.return_value = MagicMock(version=4, skills=[a, b])
+
+        bootstrap.attach_new_skills_to_agent(
+            client,
+            "agent_id_noop",
+            new_skill_ids=[],
+            replacements={},
+            desired_skill_ids=["skill_a", "skill_b"],
+        )
+
+        client.beta.agents.update.assert_not_called()
+
+    def test_orphan_not_double_counted_with_additions(self) -> None:
+        # skill_new is in both new_skill_ids (Path B) and desired_skill_ids.
+        # It must appear exactly once — not duplicated by the orphan pass.
+        client = MagicMock()
+        existing = MagicMock()
+        existing.skill_id = "skill_a"
+        client.beta.agents.retrieve.return_value = MagicMock(version=2, skills=[existing])
+
+        bootstrap.attach_new_skills_to_agent(
+            client,
+            "agent_id_dedup",
+            new_skill_ids=["skill_new"],
+            replacements={},
+            desired_skill_ids=["skill_a", "skill_new"],
+        )
+
+        kwargs = client.beta.agents.update.call_args.kwargs
+        skill_ids = [s["skill_id"] for s in kwargs["skills"]]
+        assert skill_ids.count("skill_new") == 1
+        assert set(skill_ids) == {"skill_a", "skill_new"}

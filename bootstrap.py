@@ -34,6 +34,9 @@ SKILL_ENV_KEYS: dict[str, str] = {
     "economic-calendar-fetcher": "ECONOMIC_CALENDAR_SKILL_ID",
     "breakout-trade-planner": "BREAKOUT_TRADE_PLANNER_SKILL_ID",
     "ibd-distribution-day-monitor": "IBD_DISTRIBUTION_DAY_MONITOR_SKILL_ID",
+    "parabolic-short-trade-planner": "PARABOLIC_SHORT_TRADE_PLANNER_SKILL_ID",
+    "pead-screener": "PEAD_SCREENER_SKILL_ID",
+    "trader-memory-core": "TRADER_MEMORY_CORE_SKILL_ID",
 }
 
 
@@ -221,6 +224,7 @@ def attach_new_skills_to_agent(
     agent_id: str,
     new_skill_ids: list[str],
     replacements: dict[str, str] | None = None,
+    desired_skill_ids: list[str] | None = None,
 ) -> None:
     """Attach new skills and detach stale ones from an existing agent.
 
@@ -230,16 +234,50 @@ def attach_new_skills_to_agent(
       replacements: {old_skill_id: new_skill_id} for Path C. The old_skill_id
                     is removed from the agent's skill list and the
                     new_skill_id is added in its place.
+      desired_skill_ids: full list of skill_ids that SHOULD be attached
+                     (typically all registered skill_env_map values).
+                     Any IDs in this list but missing from the agent are
+                     reconciled (orphan attach). Guards against the case
+                     where a skill_id was previously written to .env but
+                     never attached — e.g., bootstrap crashed between
+                     register_skill and agents.update.
 
     A single agents.update call applies all changes. Skill_ids are
     deduplicated by set so the same skill is never attached twice.
     """
     replacements = replacements or {}
-    if not new_skill_ids and not replacements:
+    desired_skill_ids = desired_skill_ids or []
+
+    # Pre-retrieve guard: if there is nothing the caller could possibly want
+    # changed (no additions, no replacements, no desired list to reconcile
+    # against), skip the API round-trip entirely. Preserves the original
+    # no-op contract for callers that don't pass desired_skill_ids.
+    if not new_skill_ids and not replacements and not desired_skill_ids:
         return
 
     agent = client.beta.agents.retrieve(agent_id, betas=["skills-2025-10-02"])
     current_skills = list(getattr(agent, "skills", []) or [])
+    current_ids: set[str] = set()
+    for s in current_skills:
+        sid = getattr(s, "skill_id", None) or (s.get("skill_id") if isinstance(s, dict) else None)
+        if sid:
+            current_ids.add(sid)
+
+    # Orphan reconciliation: skill_ids we expect to be attached but aren't.
+    # Exclude those already accounted for as additions or replacement targets.
+    addition_set = {sid for sid in new_skill_ids if sid}
+    replacement_targets = {sid for sid in replacements.values() if sid}
+    orphan_skill_ids = [
+        sid
+        for sid in desired_skill_ids
+        if sid
+        and sid not in current_ids
+        and sid not in addition_set
+        and sid not in replacement_targets
+    ]
+
+    if not new_skill_ids and not replacements and not orphan_skill_ids:
+        return
 
     seen: set[str] = set()
     merged_skills: list[dict[str, str]] = []
@@ -285,6 +323,18 @@ def attach_new_skills_to_agent(
                 }
             )
 
+    # Append orphans (skills in .env but not yet attached to the agent).
+    for sid in orphan_skill_ids:
+        if sid and sid not in seen:
+            seen.add(sid)
+            merged_skills.append(
+                {
+                    "type": "custom",
+                    "skill_id": sid,
+                    "version": "latest",
+                }
+            )
+
     client.beta.agents.update(
         agent_id,
         version=agent.version,
@@ -296,6 +346,8 @@ def attach_new_skills_to_agent(
         summary.append(f"{len(new_skill_ids)} added")
     if replacements:
         summary.append(f"{len(replacements)} replaced")
+    if orphan_skill_ids:
+        summary.append(f"{len(orphan_skill_ids)} orphan attached")
     print(f"  Updated agent {agent_id[:20]}... ({', '.join(summary)})")
 
 
@@ -401,37 +453,37 @@ def main() -> None:
     existing_agent = read_env_value("MANAGED_AGENT_ID")
     if args.skills_only:
         agent_id = existing_agent
-        if new_skill_ids or replacements:
-            actions = []
-            if new_skill_ids:
-                actions.append(f"{len(new_skill_ids)} new")
-            if replacements:
-                actions.append(f"{len(replacements)} replacement(s)")
-            print(f"\n[2/3] Updating agent ({', '.join(actions)})...")
-            attach_new_skills_to_agent(
-                client,
-                agent_id,
-                new_skill_ids,
-                replacements=replacements,
-            )
-        else:
-            print(f"\n[2/3] Agent preserved: {agent_id[:20]}... (no skill changes)")
+        actions = []
+        if new_skill_ids:
+            actions.append(f"{len(new_skill_ids)} new")
+        if replacements:
+            actions.append(f"{len(replacements)} replacement(s)")
+        label = f" ({', '.join(actions)})" if actions else ""
+        print(f"\n[2/3] Reconciling agent skills{label}...")
+        # Always reconcile: catches orphan skill_ids that exist in .env
+        # but were never attached (e.g., prior bootstrap crashed between
+        # register_skill and agents.update).
+        attach_new_skills_to_agent(
+            client,
+            agent_id,
+            new_skill_ids,
+            replacements=replacements,
+            desired_skill_ids=skill_ids,
+        )
     elif existing_agent and not args.force:
         agent_id = existing_agent
         # Default mode can also produce new_skill_ids when a skill directory
         # was added since the last bootstrap (e.g., new SKILL_ENV_KEY entry).
         # If we don't attach, the new skill_id lands in .env but the existing
         # agent never sees it — silently broken.
-        if new_skill_ids or replacements:
-            print(f"\n[2/3] Agent exists ({existing_agent[:20]}...); attaching new skills...")
-            attach_new_skills_to_agent(
-                client,
-                agent_id,
-                new_skill_ids,
-                replacements=replacements,
-            )
-        else:
-            print(f"\n[2/3] Agent already exists: {existing_agent[:20]}...")
+        print(f"\n[2/3] Reconciling agent skills ({existing_agent[:20]}...)...")
+        attach_new_skills_to_agent(
+            client,
+            agent_id,
+            new_skill_ids,
+            replacements=replacements,
+            desired_skill_ids=skill_ids,
+        )
     else:
         print("\n[2/3] Creating agent...")
         agent_id = create_agent(client, skill_ids)
