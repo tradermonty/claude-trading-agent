@@ -178,6 +178,49 @@ IBD_DISTRIBUTION_DAY_MONITOR = SkillDefinition(
     ],
 )
 
+PARABOLIC_SHORT_TRADE_PLANNER = SkillDefinition(
+    name="parabolic-short-trade-planner",
+    command="/parabolic-short",
+    trigger_keywords=[
+        "parabolic short",
+        "exhaustion short",
+        "qullamaggie",
+        "パラボリックショート",
+        "パラボリック・ショート",
+        "急騰銘柄ショート",
+    ],
+)
+
+PEAD_SCREENER = SkillDefinition(
+    name="pead-screener",
+    command="/pead",
+    trigger_keywords=[
+        "pead",
+        "post-earnings drift",
+        "post earnings drift",
+        "earnings gap follow-through",
+        "earnings drift",
+        "ポストアーニングスドリフト",
+        "決算後ドリフト",
+    ],
+)
+
+TRADER_MEMORY_CORE = SkillDefinition(
+    name="trader-memory-core",
+    command="/trader-memory",
+    trigger_keywords=[
+        "register thesis",
+        "thesis status",
+        "trading journal",
+        "postmortem",
+        "trader memory",
+        "テーゼ登録",
+        "投資日誌",
+        "トレード日誌",
+        "ポストモーテム",
+    ],
+)
+
 ALL_SKILLS: list[SkillDefinition] = [
     SCENARIO_ANALYZER,
     FTD_DETECTOR,
@@ -190,6 +233,9 @@ ALL_SKILLS: list[SkillDefinition] = [
     ECONOMIC_CALENDAR,
     BREAKOUT_TRADE_PLANNER,
     IBD_DISTRIBUTION_DAY_MONITOR,
+    PARABOLIC_SHORT_TRADE_PLANNER,
+    PEAD_SCREENER,
+    TRADER_MEMORY_CORE,
 ]
 
 

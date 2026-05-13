@@ -65,7 +65,7 @@ class TestSkillRegistry:
     """Verify registry integrity (skill count, uniqueness)."""
 
     def test_all_skills_count(self):
-        assert len(ALL_SKILLS) == 11
+        assert len(ALL_SKILLS) == 14
 
     def test_all_skills_have_unique_commands(self):
         commands = [s.command for s in ALL_SKILLS]
