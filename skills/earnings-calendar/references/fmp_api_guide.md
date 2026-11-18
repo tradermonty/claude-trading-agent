@@ -162,6 +162,7 @@ This reduces API calls significantly.
 import requests
 from datetime import datetime, timedelta
 
+
 def fetch_earnings_calendar(api_key, start_date, end_date):
     """
     Fetch earnings calendar from FMP API
@@ -175,16 +176,13 @@ def fetch_earnings_calendar(api_key, start_date, end_date):
         List of earnings announcements
     """
     url = "https://financialmodelingprep.com/api/v3/earning_calendar"
-    params = {
-        "apikey": api_key,
-        "from": start_date,
-        "to": end_date
-    }
+    params = {"apikey": api_key, "from": start_date, "to": end_date}
 
     response = requests.get(url, params=params)
     response.raise_for_status()
 
     return response.json()
+
 
 # Usage
 api_key = "YOUR_API_KEY"
@@ -210,7 +208,7 @@ def fetch_company_profiles(api_key, symbols):
     profiles = {}
 
     for i in range(0, len(symbols), batch_size):
-        batch = symbols[i:i+batch_size]
+        batch = symbols[i : i + batch_size]
         symbols_str = ",".join(batch)
 
         url = f"https://financialmodelingprep.com/api/v3/profile/{symbols_str}"
@@ -223,6 +221,7 @@ def fetch_company_profiles(api_key, symbols):
             profiles[profile["symbol"]] = profile
 
     return profiles
+
 
 def filter_by_market_cap(earnings, profiles, min_market_cap=2000000000):
     """
@@ -252,6 +251,7 @@ def filter_by_market_cap(earnings, profiles, min_market_cap=2000000000):
 
     return filtered
 
+
 # Complete workflow
 api_key = "YOUR_API_KEY"
 
@@ -278,7 +278,8 @@ export FMP_API_KEY="your-api-key-here"
 Access in Python:
 ```python
 import os
-api_key = os.environ.get('FMP_API_KEY')
+
+api_key = os.environ.get("FMP_API_KEY")
 ```
 
 ### Environment 2: Claude Desktop
@@ -332,11 +333,7 @@ def fetch_earnings_with_error_handling(api_key, start_date, end_date):
     """Fetch earnings with proper error handling"""
     try:
         url = "https://financialmodelingprep.com/api/v3/earning_calendar"
-        params = {
-            "apikey": api_key,
-            "from": start_date,
-            "to": end_date
-        }
+        params = {"apikey": api_key, "from": start_date, "to": end_date}
 
         response = requests.get(url, params=params, timeout=30)
 
@@ -419,10 +416,12 @@ For repeated analyses within same day:
 import json
 from pathlib import Path
 
+
 def cache_earnings_data(data, cache_file="earnings_cache.json"):
     """Save earnings data to cache file"""
     cache_path = Path(cache_file)
     cache_path.write_text(json.dumps(data, indent=2))
+
 
 def load_cached_data(cache_file="earnings_cache.json", max_age_hours=6):
     """Load cached data if recent enough"""
@@ -450,11 +449,7 @@ def safe_get(data, key, default="N/A"):
 ```python
 def sort_by_market_cap(earnings):
     """Sort earnings by market cap descending"""
-    return sorted(
-        earnings,
-        key=lambda x: x.get("marketCap", 0),
-        reverse=True
-    )
+    return sorted(earnings, key=lambda x: x.get("marketCap", 0), reverse=True)
 ```
 
 ## API Call Optimization
@@ -474,6 +469,7 @@ For a typical weekly earnings calendar:
 
 ```python
 import time
+
 
 def rate_limited_request(url, params, delay=0.1):
     """Make request with rate limiting"""
@@ -571,7 +567,7 @@ After fetching and processing FMP data:
     "sector": "Technology",
     "industry": "Consumer Electronics",
     "epsEstimated": 1.54,
-    "revenueEstimated": 123400000000
+    "revenueEstimated": 123400000000,
 }
 ```
 

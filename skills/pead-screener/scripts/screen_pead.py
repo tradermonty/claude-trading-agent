@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -292,7 +291,7 @@ def analyze_stock(
     gap_pct: float,
     current_price: float,
     watch_weeks: int = 5,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Full PEAD analysis for a single stock.
 

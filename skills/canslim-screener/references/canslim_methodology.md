@@ -69,7 +69,7 @@ While current quarterly earnings (C) signal near-term momentum, annual earnings 
 
 ```python
 # Compound Annual Growth Rate formula
-EPS_CAGR = ((EPS_current / EPS_3_years_ago) ^ (1/3)) - 1
+EPS_CAGR = ((EPS_current / EPS_3_years_ago) ^ (1 / 3)) - 1
 
 # Example: MSFT 2017-2020
 # EPS: $3.25 (2017) → $5.76 (2020)
@@ -384,12 +384,14 @@ if 50 <= num_holders <= 100 and 30 <= ownership_pct <= 60:
 elif superinvestor_present and 30 <= num_holders <= 150:
     score = 90  # Superinvestor quality signal
 
-elif (30 <= num_holders < 50 and 20 <= ownership_pct <= 40) or \
-     (100 < num_holders <= 150 and 40 <= ownership_pct <= 70):
+elif (30 <= num_holders < 50 and 20 <= ownership_pct <= 40) or (
+    100 < num_holders <= 150 and 40 <= ownership_pct <= 70
+):
     score = 80  # Good ranges
 
-elif (20 <= num_holders < 30 and 20 <= ownership_pct <= 50) or \
-     (50 <= num_holders <= 150 and 20 <= ownership_pct <= 70):
+elif (20 <= num_holders < 30 and 20 <= ownership_pct <= 50) or (
+    50 <= num_holders <= 150 and 20 <= ownership_pct <= 70
+):
     score = 60  # Acceptable
 
 elif ownership_pct < 20 or ownership_pct > 80:

@@ -73,7 +73,7 @@ def _bar_alpaca(ts_utc: str, c: float = 100.0, v: int = 1_000_000) -> dict:
 def adapter():
     return AlpacaMarketDataAdapter(
         api_key="key",  # pragma: allowlist secret
-        secret_key="secret",  # pragma: allowlist secret
+        secret_key="secret",  # pragma: allowlist secret  # nosec B106: synthetic test credentials
     )
 
 
@@ -145,7 +145,7 @@ class TestPagination:
     def test_follows_next_page_token(self, adapter):
         page1 = _alpaca_bars_response(
             [_bar_alpaca("2026-05-05T13:30:00Z", 150.0)],
-            next_token="abc",
+            next_token="abc",  # nosec B106: synthetic test credentials
         )
         page2 = _alpaca_bars_response(
             [_bar_alpaca("2026-05-05T13:35:00Z", 150.5)],
@@ -258,12 +258,12 @@ class TestConfig:
         # the URL choice.
         a_paper = AlpacaMarketDataAdapter(
             api_key="k",  # pragma: allowlist secret
-            secret_key="s",  # pragma: allowlist secret
+            secret_key="s",  # pragma: allowlist secret  # nosec B106: synthetic test credentials
             paper=True,
         )
         a_live = AlpacaMarketDataAdapter(
             api_key="k",  # pragma: allowlist secret
-            secret_key="s",  # pragma: allowlist secret
+            secret_key="s",  # pragma: allowlist secret  # nosec B106: synthetic test credentials
             paper=False,
         )
         assert a_paper.base_url == a_live.base_url

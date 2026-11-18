@@ -14,7 +14,6 @@ Key Features:
 """
 
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 
 def daily_to_weekly(daily_prices: list[dict], earnings_date: str = None) -> list[dict]:
@@ -139,7 +138,7 @@ def daily_to_weekly(daily_prices: list[dict], earnings_date: str = None) -> list
     return weekly_candles
 
 
-def find_red_candle(weekly_candles: list[dict], earnings_week_idx: int = None) -> Optional[dict]:
+def find_red_candle(weekly_candles: list[dict], earnings_week_idx: int = None) -> dict | None:
     """
     Find the most recent red candle (close < open) after earnings week.
 

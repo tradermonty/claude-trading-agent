@@ -63,10 +63,13 @@ Repeat the comparison for the configured industries after December 7, 2026.
 Offline validation with Python 3.12.10 and finvizfinance 1.5.0: 1,572 passed,
 1 skipped; total coverage 98.49% (required 98.44%). The bundled theme suite
 has 571 passing tests, including the synthetic 1.5.0 public HTML parser.
-Changed-skill lint, formatting, Bandit, codespell and upload collection pass.
-The repository-wide quality script stops on existing lint errors outside
-this skill. Baseline comparison also found existing formatting/Bandit
-failures; they are not introduced by this migration.
+The full repository quality gate passes: lint, formatting, Bandit,
+codespell, coverage tests and compilation. A separate mechanical commit
+resolves pre-existing gate failures using equivalent UTC/type/zip syntax,
+formatted documentation examples and annotations for synthetic test keys.
+The affected parabolic, PEAD and trader-memory suites additionally pass
+259, 63 and 99 tests respectively. Secret scanning and the bootstrap
+upload-file collection check also pass.
 
 The uploaded Managed Agent skill is a separate deployment artifact. After
 review and merge, use the existing bootstrap skill-version registration flow

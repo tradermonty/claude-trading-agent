@@ -17,7 +17,6 @@ import os
 import sys
 import time
 from datetime import date, timedelta
-from typing import Optional
 
 try:
     import requests
@@ -71,7 +70,7 @@ _FMP_ENDPOINTS = {
 }
 
 
-def _normalize_eod_flat_list(data, symbols_str: str, limit: Optional[int] = None):
+def _normalize_eod_flat_list(data, symbols_str: str, limit: int | None = None):
     """Convert stable/historical-price-eod/full flat list to v3-compatible dict.
 
     Input  : [{"symbol": "SPY", "date": "...", "open": ..., ...}, ...]
@@ -125,7 +124,7 @@ class FMPClient:
 
     _ENDPOINT_FAILURE_THRESHOLD = 3  # disable endpoint after N consecutive failures
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.getenv("FMP_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -145,8 +144,8 @@ class FMPClient:
         self._disabled_endpoints: set[str] = set()
 
     def _rate_limited_get(
-        self, url: str, params: Optional[dict] = None, quiet: bool = False
-    ) -> Optional[dict]:
+        self, url: str, params: dict | None = None, quiet: bool = False
+    ) -> dict | None:
         if self.rate_limit_reached:
             return None
 
@@ -268,7 +267,7 @@ class FMPClient:
         if failures >= self._ENDPOINT_FAILURE_THRESHOLD:
             self._disabled_endpoints.add(base_url)
 
-    def get_sp500_constituents(self) -> Optional[list[dict]]:
+    def get_sp500_constituents(self) -> list[dict] | None:
         """Fetch S&P 500 constituent list.
 
         Returns:
@@ -285,7 +284,7 @@ class FMPClient:
             self.cache[cache_key] = data
         return data
 
-    def get_quote(self, symbols: str) -> Optional[list[dict]]:
+    def get_quote(self, symbols: str) -> list[dict] | None:
         """Fetch real-time quote data for one or more symbols (comma-separated)"""
         cache_key = f"quote_{symbols}"
         if cache_key in self.cache:
@@ -296,7 +295,7 @@ class FMPClient:
             self.cache[cache_key] = data
         return data
 
-    def get_historical_prices(self, symbol: str, days: int = 365) -> Optional[dict]:
+    def get_historical_prices(self, symbol: str, days: int = 365) -> dict | None:
         """Fetch historical daily OHLCV data"""
         cache_key = f"prices_{symbol}_{days}"
         if cache_key in self.cache:
@@ -337,7 +336,7 @@ class FMPClient:
 
     # --- Additions for parabolic-short-trade-planner ---
 
-    def get_company_profile(self, symbol: str) -> Optional[dict]:
+    def get_company_profile(self, symbol: str) -> dict | None:
         """Fetch company profile (market cap, IPO date, sector, etc.).
 
         Uses ``/api/v3/profile/{symbol}``. Returns ``None`` on failure.
@@ -353,7 +352,7 @@ class FMPClient:
             return profile
         return None
 
-    def get_profile_bulk(self, part: int = 0) -> Optional[list[dict]]:
+    def get_profile_bulk(self, part: int = 0) -> list[dict] | None:
         """Bulk profile download (Premium endpoint).
 
         Used to avoid per-symbol calls during the initial universe pass.
@@ -368,7 +367,7 @@ class FMPClient:
             return data
         return None
 
-    def get_earnings_calendar(self, from_date: str, to_date: str) -> Optional[list[dict]]:
+    def get_earnings_calendar(self, from_date: str, to_date: str) -> list[dict] | None:
         """Fetch upcoming earnings between two dates (YYYY-MM-DD)."""
         cache_key = f"earnings_{from_date}_{to_date}"
         if cache_key in self.cache:
@@ -379,7 +378,7 @@ class FMPClient:
             self.cache[cache_key] = data
         return data
 
-    def get_aftermarket_quote(self, symbol: str) -> Optional[dict]:
+    def get_aftermarket_quote(self, symbol: str) -> dict | None:
         """Pre/after-market quote.
 
         FMP exposes this as ``stable/aftermarket-quote?symbol=AAPL``. The
@@ -418,9 +417,9 @@ class FMPClient:
         self,
         symbol: str,
         interval: str = "5min",
-        from_ts: Optional[str] = None,
-        to_ts: Optional[str] = None,
-    ) -> Optional[list[dict]]:
+        from_ts: str | None = None,
+        to_ts: str | None = None,
+    ) -> list[dict] | None:
         """Intraday bars — Phase 3 (v0.5) feature.
 
         Stub for the MVP. Phase 1 + Phase 2 do not need this; the

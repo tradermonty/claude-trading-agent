@@ -29,6 +29,7 @@ instead of crashing.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import UTC
 
 
 class BrokerNotConfiguredError(RuntimeError):
@@ -57,7 +58,7 @@ class ManualBrokerAdapter(BrokerShortInventoryAdapter):
     """
 
     def get_inventory_status(self, symbol: str) -> dict:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return {
             "shortable": None,
@@ -67,5 +68,5 @@ class ManualBrokerAdapter(BrokerShortInventoryAdapter):
             "borrow_fee_manual_check_required": True,
             "manual_locate_required": True,
             "source": "manual",
-            "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "checked_at": datetime.now(UTC).isoformat(timespec="seconds"),
         }

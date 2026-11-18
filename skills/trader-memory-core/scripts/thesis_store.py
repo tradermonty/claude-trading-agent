@@ -13,7 +13,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import yaml
@@ -156,11 +156,11 @@ def _validate_thesis(thesis: dict) -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _today_str() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%d")
+    return datetime.now(UTC).strftime("%Y%m%d")
 
 
 def _generate_thesis_id(ticker: str, thesis_type: str, date_str: str) -> str:
@@ -1148,7 +1148,7 @@ if __name__ == "__main__":
 
     # review-due
     review_p = sub.add_parser("review-due", help="List theses due for review")
-    review_p.add_argument("--as-of", default=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    review_p.add_argument("--as-of", default=datetime.now(UTC).strftime("%Y-%m-%d"))
 
     # rebuild-index
     sub.add_parser("rebuild-index", help="Rebuild _index.json from YAML files")
@@ -1159,7 +1159,7 @@ if __name__ == "__main__":
     # mark-reviewed
     mr_p = sub.add_parser("mark-reviewed", help="Record a review")
     mr_p.add_argument("thesis_id", help="Thesis ID")
-    mr_p.add_argument("--review-date", default=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    mr_p.add_argument("--review-date", default=datetime.now(UTC).strftime("%Y-%m-%d"))
     mr_p.add_argument("--outcome", default="OK", choices=["OK", "WARN", "REVIEW"])
     mr_p.add_argument("--notes", default=None)
 

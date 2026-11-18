@@ -16,7 +16,7 @@ def adv_dollars(closes: list[float], volumes: list[float], period: int = 20) -> 
         raise ValueError(f"period must be positive, got {period}")
     if len(closes) < period or len(volumes) < period or len(closes) != len(volumes):
         return None
-    pairs = list(zip(closes[-period:], volumes[-period:]))
+    pairs = list(zip(closes[-period:], volumes[-period:], strict=False))
     total = sum(c * v for c, v in pairs)
     return total / period
 

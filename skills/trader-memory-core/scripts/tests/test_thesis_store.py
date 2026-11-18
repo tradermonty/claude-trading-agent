@@ -1,6 +1,7 @@
 """Tests for thesis_store.py — CRUD, transitions, and index management."""
 
 import json
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -481,9 +482,9 @@ def test_register_without_source_date_uses_today(tmp_path: Path):
     data = _make_thesis_data()
     tid = thesis_store.register(tmp_path, data)
     # Should not contain a past date
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    today = datetime.now(UTC).strftime("%Y%m%d")
     assert f"_{today}_" in tid
 
 

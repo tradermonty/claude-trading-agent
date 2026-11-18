@@ -39,7 +39,7 @@ def consecutive_green_days(opens: list[float], closes: list[float]) -> int:
     if len(opens) != len(closes) or not closes:
         return 0
     streak = 0
-    for o, c in zip(reversed(opens), reversed(closes)):
+    for o, c in zip(reversed(opens), reversed(closes), strict=False):
         if c > o:
             streak += 1
         else:

@@ -390,8 +390,8 @@ curl "https://financialmodelingprep.com/api/v3/historical-price-full/NVDA?timese
 **Usage**:
 ```python
 # Stock 52-week performance
-current_price = historical[0]['close']
-price_52w_ago = historical[-1]['close']  # ~252 trading days
+current_price = historical[0]["close"]
+price_52w_ago = historical[-1]["close"]  # ~252 trading days
 stock_perf = ((current_price / price_52w_ago) - 1) * 100
 
 # Compare vs S&P 500 (^GSPC) for RS calculation
@@ -498,7 +498,7 @@ curl "https://financialmodelingprep.com/api/v3/institutional-holder/AAPL?apikey=
 **Usage**:
 ```python
 # Calculate total institutional ownership
-total_shares_held = sum(holder['shares'] for holder in institutional_holders)
+total_shares_held = sum(holder["shares"] for holder in institutional_holders)
 ownership_pct = (total_shares_held / shares_outstanding) * 100
 
 # Count unique holders
@@ -512,7 +512,7 @@ SUPERINVESTORS = [
     # ...
 ]
 superinvestor_present = any(
-    superinvestor in holder['holder'].upper()
+    superinvestor in holder["holder"].upper()
     for holder in institutional_holders
     for superinvestor in SUPERINVESTORS
 )
@@ -584,6 +584,7 @@ superinvestor_present = any(
 
 ```python
 import time
+
 
 def rate_limited_get(url, params):
     """Enforce 0.3s delay between requests (200 requests/minute max)"""

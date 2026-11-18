@@ -25,7 +25,7 @@ import json
 import logging
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -266,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 _attach_size_resolved(state, plan["size_recipe"])
 
-            state["last_evaluated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            state["last_evaluated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
             save_state(args.state_dir, plan["plan_id"], as_of, state)
             monitored_plans.append(state)
 
@@ -275,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         "skill": SKILL_NAME,
         "phase": PHASE,
         "as_of": as_of,
-        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "evaluated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "now_et": ts_now_et.isoformat(),
         "market_status": market_status,
         "data_source": data_source,

@@ -65,7 +65,7 @@ def normalize_bars(
     chronological = sorted(by_date.values(), key=lambda r: r["date"])
 
     if warn_on_gaps and len(chronological) > 1:
-        for prev, curr in zip(chronological, chronological[1:]):
+        for prev, curr in zip(chronological, chronological[1:], strict=False):
             try:
                 d_prev = date.fromisoformat(prev["date"])
                 d_curr = date.fromisoformat(curr["date"])

@@ -19,7 +19,7 @@ Important Alpaca-specific facts that the contract reflects:
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 try:
     import requests
@@ -77,7 +77,7 @@ class AlpacaInventoryAdapter(BrokerShortInventoryAdapter):
                 "borrow_fee_manual_check_required": True,
                 "manual_locate_required": True,
                 "source": "alpaca_v2_assets",
-                "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "checked_at": datetime.now(UTC).isoformat(timespec="seconds"),
                 "error": "asset_not_found",
             }
 
@@ -97,5 +97,5 @@ class AlpacaInventoryAdapter(BrokerShortInventoryAdapter):
             "borrow_fee_manual_check_required": not etb,
             "manual_locate_required": True,
             "source": "alpaca_v2_assets",
-            "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "checked_at": datetime.now(UTC).isoformat(timespec="seconds"),
         }
