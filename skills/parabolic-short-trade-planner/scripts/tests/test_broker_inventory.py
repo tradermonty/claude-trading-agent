@@ -52,7 +52,7 @@ def _make_alpaca():
 
     return AlpacaInventoryAdapter(
         api_key="key",  # pragma: allowlist secret
-        secret_key="secret",  # pragma: allowlist secret
+        secret_key="secret",  # pragma: allowlist secret  # nosec B106: synthetic test credentials
         paper=True,
     )
 

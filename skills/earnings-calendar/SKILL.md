@@ -237,12 +237,13 @@ Once earnings data is retrieved (JSON format), process and organize it:
 Load JSON data from script output:
 ```python
 import json
+
 earnings_data = json.loads(earnings_json_string)
 ```
 
 Or if saved to file:
 ```python
-with open('earnings_data.json', 'r') as f:
+with open("earnings_data.json", "r") as f:
     earnings_data = json.load(f)
 ```
 

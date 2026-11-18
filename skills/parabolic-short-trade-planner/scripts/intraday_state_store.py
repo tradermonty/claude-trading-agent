@@ -15,7 +15,7 @@ that helps "advance" state, which would be the wrong abstraction.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -50,6 +50,6 @@ def save_state(
     # ``written_at`` is wall-clock — it's metadata about *when this run
     # wrote the file*, not part of the FSM state. Idempotency tests
     # normalise this field before byte-comparing.
-    payload["written_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload["written_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return p

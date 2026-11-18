@@ -14,7 +14,7 @@ Coverage focus:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 import market_clock as mc
@@ -56,7 +56,7 @@ class TestSessionDateFor:
 
     def test_utc_input_converted_to_et_date(self):
         # 2026-05-06 02:00 UTC = 2026-05-05 22:00 ET (still the 5th).
-        ts = datetime(2026, 5, 6, 2, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 5, 6, 2, 0, tzinfo=UTC)
         assert mc.session_date_for(ts) == "2026-05-05"
 
     def test_naive_input_raises(self):
@@ -92,8 +92,8 @@ class TestDSTBoundaries:
             datetime(2026, 4, 1, 14, 30, tzinfo=ET),  # EDT
         ]:
             utc = mc.to_utc(et_ts)
-            assert utc.tzinfo == timezone.utc
-            assert utc == et_ts.astimezone(timezone.utc)
+            assert utc.tzinfo == UTC
+            assert utc == et_ts.astimezone(UTC)
 
 
 class TestMinutesUntilClose:
@@ -119,11 +119,11 @@ class TestToUtc:
     def test_aware_et_to_utc(self):
         ts = datetime(2026, 5, 5, 9, 30, tzinfo=ET)  # EDT, -04:00
         utc = mc.to_utc(ts)
-        assert utc.tzinfo == timezone.utc
+        assert utc.tzinfo == UTC
         assert utc.hour == 13 and utc.minute == 30
 
     def test_already_utc_passthrough(self):
-        ts = datetime(2026, 5, 5, 13, 30, tzinfo=timezone.utc)
+        ts = datetime(2026, 5, 5, 13, 30, tzinfo=UTC)
         utc = mc.to_utc(ts)
         assert utc == ts
 

@@ -68,7 +68,7 @@ def determine_data_mode(fmp_available: bool, finviz_elite: bool) -> str:
     if fmp_available and finviz_elite:
         return "FINVIZ-Elite+FMP"
     elif fmp_available and not finviz_elite:
-        return "FMP-only"
+        return "FINVIZ-Public+FMP"
     elif not fmp_available and finviz_elite:
         return "FINVIZ-Elite"
     else:

@@ -172,11 +172,7 @@ import requests
 
 response = requests.get(
     "https://financialmodelingprep.com/api/v3/economic_calendar",
-    params={
-        "from": "2025-01-01",
-        "to": "2025-01-31",
-        "apikey": "YOUR_API_KEY"
-    }
+    params={"from": "2025-01-01", "to": "2025-01-31", "apikey": "YOUR_API_KEY"},
 )
 
 events = response.json()
@@ -249,11 +245,12 @@ Implement exponential backoff for retries:
 ```python
 import time
 
+
 def fetch_with_retry(url, params, max_retries=3):
     for attempt in range(max_retries):
         response = requests.get(url, params=params)
         if response.status_code == 429:
-            wait_time = 2 ** attempt  # Exponential backoff
+            wait_time = 2**attempt  # Exponential backoff
             time.sleep(wait_time)
             continue
         return response

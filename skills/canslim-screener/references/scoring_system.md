@@ -51,13 +51,13 @@ revenue_growth_pct = ((latest_qtr_revenue - year_ago_qtr_revenue) / year_ago_qtr
 if eps_growth_pct >= 50 and revenue_growth_pct >= 25:
     c_score = 100  # Explosive growth
 elif eps_growth_pct >= 30 and revenue_growth_pct >= 15:
-    c_score = 80   # Strong growth
+    c_score = 80  # Strong growth
 elif eps_growth_pct >= 18 and revenue_growth_pct >= 10:
-    c_score = 60   # Meets CANSLIM minimum
+    c_score = 60  # Meets CANSLIM minimum
 elif eps_growth_pct >= 10:
-    c_score = 40   # Below threshold
+    c_score = 40  # Below threshold
 else:
-    c_score = 0    # Weak or negative growth
+    c_score = 0  # Weak or negative growth
 ```
 
 **Interpretation:**
@@ -82,12 +82,12 @@ else:
 **Calculation:**
 ```python
 # 3-year CAGR (Compound Annual Growth Rate)
-eps_cagr_3yr = (((current_year_eps / eps_3_years_ago) ** (1/3)) - 1) * 100
-revenue_cagr_3yr = (((current_year_revenue / revenue_3_years_ago) ** (1/3)) - 1) * 100
+eps_cagr_3yr = (((current_year_eps / eps_3_years_ago) ** (1 / 3)) - 1) * 100
+revenue_cagr_3yr = (((current_year_revenue / revenue_3_years_ago) ** (1 / 3)) - 1) * 100
 
 # Growth stability check
 eps_values = [year1_eps, year2_eps, year3_eps, year4_eps]  # chronological order
-stable = all(eps_values[i] >= eps_values[i-1] for i in range(1, 4))  # No down years
+stable = all(eps_values[i] >= eps_values[i - 1] for i in range(1, 4))  # No down years
 ```
 
 **Scoring Logic:**
@@ -145,15 +145,23 @@ distance_from_high_pct = ((current_price / week_52_high) - 1) * 100
 
 # Breakout detection (new high on volume)
 breakout_detected = (
-    current_price >= week_52_high * 0.995 and  # Within 0.5% of high
-    recent_volume > avg_volume * 1.4           # Volume 40%+ above average
+    current_price >= week_52_high * 0.995  # Within 0.5% of high
+    and recent_volume > avg_volume * 1.4  # Volume 40%+ above average
 )
 
 # New product signal detection (keyword search in news)
-new_product_signals = search_news_keywords([
-    "FDA approval", "patent granted", "breakthrough", "game-changer",
-    "new product", "product launch", "expansion", "acquisition"
-])
+new_product_signals = search_news_keywords(
+    [
+        "FDA approval",
+        "patent granted",
+        "breakthrough",
+        "game-changer",
+        "new product",
+        "product launch",
+        "expansion",
+        "acquisition",
+    ]
+)
 ```
 
 **Scoring Logic:**
@@ -162,13 +170,13 @@ new_product_signals = search_news_keywords([
 if distance_from_high_pct >= -5 and breakout_detected and new_product_signals:
     base_score = 100  # Perfect setup
 elif distance_from_high_pct >= -10 and breakout_detected:
-    base_score = 80   # Strong momentum
+    base_score = 80  # Strong momentum
 elif distance_from_high_pct >= -15 or breakout_detected:
-    base_score = 60   # Acceptable
+    base_score = 60  # Acceptable
 elif distance_from_high_pct >= -25:
-    base_score = 40   # Weak momentum
+    base_score = 40  # Weak momentum
 else:
-    base_score = 20   # Too far from highs
+    base_score = 20  # Too far from highs
 
 # Bonus for new product/catalyst signals (optional data)
 if new_product_signals:
@@ -223,21 +231,21 @@ else:
 if trend == "strong_uptrend" and vix < 15:
     base_score = 100  # Ideal conditions
 elif trend == "strong_uptrend" or (trend == "uptrend" and vix < 20):
-    base_score = 80   # Favorable
+    base_score = 80  # Favorable
 elif trend == "uptrend":
-    base_score = 60   # Acceptable
+    base_score = 60  # Acceptable
 elif trend == "choppy":
-    base_score = 40   # Neutral/caution
+    base_score = 40  # Neutral/caution
 elif trend == "downtrend":
-    base_score = 20   # Weak market
+    base_score = 20  # Weak market
 else:  # bear_market or vix > 30
-    base_score = 0    # Avoid stocks entirely
+    base_score = 0  # Avoid stocks entirely
 
 # VIX adjustment (fear gauge)
 if vix < 15:
     base_score += 10  # Low fear, bullish
 elif vix > 30:
-    base_score = 0    # Panic, override trend
+    base_score = 0  # Panic, override trend
 
 # Follow-through day bonus (optional advanced feature)
 if follow_through_day_detected:
@@ -284,13 +292,13 @@ rs_rank = calculate_rs_rank(relative_perf)
 if rs_rank >= 90:
     base_score = 100  # Top decile leader
 elif rs_rank >= 80:
-    base_score = 80   # Strong leader
+    base_score = 80  # Strong leader
 elif rs_rank >= 70:
-    base_score = 60   # Above average
+    base_score = 60  # Above average
 elif rs_rank >= 60:
-    base_score = 40   # Average
+    base_score = 40  # Average
 else:
-    base_score = 20   # Laggard
+    base_score = 20  # Laggard
 ```
 
 **Interpretation:**
@@ -310,13 +318,13 @@ else:
 
 ```python
 composite_score = (
-    c_score * 0.15 +  # Current Earnings: 15% weight
-    a_score * 0.20 +  # Annual Growth: 20% weight
-    n_score * 0.15 +  # Newness: 15% weight
-    s_score * 0.15 +  # Supply/Demand: 15% weight
-    l_score * 0.20 +  # Leadership/RS Rank: 20% weight
-    i_score * 0.10 +  # Institutional: 10% weight
-    m_score * 0.05    # Market Direction: 5% weight
+    c_score * 0.15  # Current Earnings: 15% weight
+    + a_score * 0.20  # Annual Growth: 20% weight
+    + n_score * 0.15  # Newness: 15% weight
+    + s_score * 0.15  # Supply/Demand: 15% weight
+    + l_score * 0.20  # Leadership/RS Rank: 20% weight
+    + i_score * 0.10  # Institutional: 10% weight
+    + m_score * 0.05  # Market Direction: 5% weight
 )
 
 # Result: 0-100 composite score
@@ -340,13 +348,13 @@ For each stock, identify the component with the **lowest individual score** to g
 
 ```python
 components = {
-    'C': c_score,
-    'A': a_score,
-    'N': n_score,
-    'S': s_score,
-    'L': l_score,
-    'I': i_score,
-    'M': m_score
+    "C": c_score,
+    "A": a_score,
+    "N": n_score,
+    "S": s_score,
+    "L": l_score,
+    "I": i_score,
+    "M": m_score,
 }
 
 weakest_component = min(components, key=components.get)
@@ -366,12 +374,12 @@ weakest_score = components[weakest_component]
 
 ```python
 composite_score = (
-    c_score * 0.19 +  # Current Earnings: 19% weight
-    a_score * 0.25 +  # Annual Growth: 25% weight
-    n_score * 0.19 +  # Newness: 19% weight
-    s_score * 0.19 +  # Supply/Demand: 19% weight (NEW)
-    i_score * 0.13 +  # Institutional: 13% weight (NEW)
-    m_score * 0.06    # Market Direction: 6% weight
+    c_score * 0.19  # Current Earnings: 19% weight
+    + a_score * 0.25  # Annual Growth: 25% weight
+    + n_score * 0.19  # Newness: 19% weight
+    + s_score * 0.19  # Supply/Demand: 19% weight (NEW)
+    + i_score * 0.13  # Institutional: 13% weight (NEW)
+    + m_score * 0.06  # Market Direction: 6% weight
 )
 
 # Result: 0-100 composite score (Phase 2)
@@ -400,7 +408,7 @@ thresholds = {
     "N": 40,  # Within 15% of 52-week high
     "S": 40,  # Accumulation pattern (ratio ≥ 1.0)
     "I": 40,  # 30+ holders OR 20%+ ownership
-    "M": 40   # Market in uptrend
+    "M": 40,  # Market in uptrend
 }
 
 # Stock passes if ALL components >= thresholds
@@ -419,12 +427,12 @@ passes_threshold = all(score >= thresholds[comp] for comp, score in scores.items
 
 ```python
 components = {
-    'C': c_score,
-    'A': a_score,
-    'N': n_score,
-    'S': s_score,  # NEW
-    'I': i_score,  # NEW
-    'M': m_score
+    "C": c_score,
+    "A": a_score,
+    "N": n_score,
+    "S": s_score,  # NEW
+    "I": i_score,  # NEW
+    "M": m_score,
 }
 
 weakest_component = min(components, key=components.get)

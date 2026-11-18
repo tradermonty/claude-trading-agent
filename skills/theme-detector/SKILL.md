@@ -65,18 +65,18 @@ echo $FMP_API_KEY
 ```
 
 **Requirements:**
-- **Python 3.7+** with `requests`, `beautifulsoup4`, `lxml`, `pandas`, `numpy`, `yfinance`
+- **Python 3.12+** with `requests`, `beautifulsoup4`, `lxml`, `pandas`, `numpy`, `yfinance`
 - **FINVIZ Elite API key** (recommended for full industry coverage and speed)
 - **FMP API key** (optional, for P/E ratio valuation data)
 - Without FINVIZ Elite, the skill uses public FINVIZ scraping (limited to ~20 stocks per industry, slower rate limits)
 
 **Optional dependencies:**
-- `finvizfinance` (for FINVIZ Elite mode)
+- `finvizfinance>=1.5.0` (for public FINVIZ fallback; Elite uses `requests`)
 - `PyYAML` (for `--themes-config` custom themes)
 
 **Installation:**
 ```bash
-pip install requests beautifulsoup4 lxml pandas numpy yfinance
+pip install requests beautifulsoup4 lxml pandas numpy yfinance "finvizfinance>=1.5.0"
 ```
 
 ### Step 2: Execute Theme Detection Script
@@ -323,3 +323,10 @@ A LEAD theme indicates relative outperformance of its constituent industries. A 
 **Execution Time:** ~2-8 minutes depending on mode
 **Output Formats:** JSON + Markdown
 **Themes Covered:** 14+ cross-sector themes
+
+## Bundled FINVIZ migration
+
+This app adopts the export, Elite capitalization, and group fallback adapters
+from `tradermonty/claude-trading-skills` revision
+`34b848b41f5741435bb4791692a6c0c7a66c0597` (2026-11-18 snapshot).
+See `references/finviz_migration.md` for the ranking contract and release checks.

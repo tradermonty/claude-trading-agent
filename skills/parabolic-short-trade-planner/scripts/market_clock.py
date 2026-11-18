@@ -14,7 +14,7 @@ that as ``evaluation_status=no_bars`` per plan, not a code crash.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
@@ -41,7 +41,7 @@ def now_et() -> datetime:
 def to_utc(ts: datetime) -> datetime:
     """Convert an aware datetime to UTC. DST-safe via zoneinfo."""
     _require_aware(ts)
-    return ts.astimezone(timezone.utc)
+    return ts.astimezone(UTC)
 
 
 def is_regular_session(ts: datetime) -> bool:

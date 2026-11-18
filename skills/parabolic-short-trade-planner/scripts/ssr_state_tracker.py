@@ -21,7 +21,7 @@ Contract notes:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 SSR_DROP_THRESHOLD_PCT = 10.0
@@ -91,6 +91,6 @@ def save_state(state_dir: str | Path, ticker: str, as_of: str, state: dict) -> P
     p = state_path(state_dir, ticker, as_of)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(state)
-    payload["written_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload["written_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return p

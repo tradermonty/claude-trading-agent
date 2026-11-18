@@ -122,26 +122,29 @@ def _patch_runtime(monkeypatch, tmp_path: Path, *, discover=False, dynamic=False
     monkeypatch.setattr(
         finviz_client,
         "get_industry_performance",
-        lambda: [
-            {
-                "name": "Semiconductors",
-                "perf_1w": 0.04,
-                "perf_1m": 0.10,
-                "perf_3m": 0.20,
-                "perf_6m": 0.30,
-                "perf_1y": 0.40,
-                "perf_ytd": 0.15,
-            },
-            {
-                "name": "Software - Infrastructure",
-                "perf_1w": 0.03,
-                "perf_1m": 0.08,
-                "perf_3m": 0.18,
-                "perf_6m": 0.25,
-                "perf_1y": 0.35,
-                "perf_ytd": 0.12,
-            },
-        ],
+        lambda **kwargs: (
+            kwargs["provenance"].update(source="public", fallback_reason=None)
+            or [
+                {
+                    "name": "Semiconductors",
+                    "perf_1w": 0.04,
+                    "perf_1m": 0.10,
+                    "perf_3m": 0.20,
+                    "perf_6m": 0.30,
+                    "perf_1y": 0.40,
+                    "perf_ytd": 0.15,
+                },
+                {
+                    "name": "Software - Infrastructure",
+                    "perf_1w": 0.03,
+                    "perf_1m": 0.08,
+                    "perf_3m": 0.18,
+                    "perf_6m": 0.25,
+                    "perf_1y": 0.35,
+                    "perf_ytd": 0.12,
+                },
+            ]
+        ),
     )
     monkeypatch.setattr(finviz_client, "cap_outlier_performances", lambda industries: industries)
 
@@ -267,9 +270,62 @@ def test_main_orchestrates_discovery_and_dynamic_stock_metadata(monkeypatch, tmp
 def test_main_exits_when_finviz_returns_no_industries(monkeypatch, tmp_path):
     _patch_runtime(monkeypatch, tmp_path)
     finviz_client = importlib.import_module("finviz_performance_client")
-    monkeypatch.setattr(finviz_client, "get_industry_performance", lambda: [])
+    monkeypatch.setattr(finviz_client, "get_industry_performance", lambda **kwargs: [])
 
     with pytest.raises(SystemExit) as exc:
         theme_detector.main()
 
     assert exc.value.code == 1
+
+
+@pytest.mark.parametrize("mode", ["elite", "public"])
+def test_main_records_actual_group_fallback_and_routes_key(monkeypatch, tmp_path, capsys, mode):
+    from unittest.mock import Mock
+
+    import finviz_performance_client as client
+    import pandas as pd
+    import requests
+
+    original_fetch = client.get_industry_performance
+    _patch_runtime(monkeypatch, tmp_path)
+    monkeypatch.setattr(client, "get_industry_performance", original_fetch)
+    monkeypatch.setattr(
+        theme_detector,
+        "parse_args",
+        lambda: _args(
+            tmp_path,
+            finviz_mode=mode,
+            finviz_api_key="FICTIONAL-CLI-KEY",  # pragma: allowlist secret
+            fmp_api_key="FMP",  # pragma: allowlist secret
+        ),
+    )
+    monkeypatch.setattr(client, "HAS_FINVIZFINANCE", True)
+    provider = Mock()
+    provider.Performance.return_value.screener_view.return_value = pd.DataFrame(
+        [
+            {
+                "Name": "Semiconductors",
+                "Perf Week": 0.05,
+                "Perf Month": 0.1,
+                "Perf Quart": 0.2,
+                "Perf Half": 0.3,
+            }
+        ]
+    )
+    monkeypatch.setattr(client, "fvperf", provider)
+    get = Mock(side_effect=requests.Timeout("FICTIONAL-CLI-KEY"))
+    monkeypatch.setattr(requests, "get", get)
+    theme_detector.main()
+    output = capsys.readouterr()
+    metadata = json.loads(output.out)["metadata"]
+    assert metadata["finviz_mode"] == "public"
+    assert metadata["data_mode"] == "FINVIZ-Public+FMP"
+    assert metadata["data_sources"]["finviz_industry_performance"] == {
+        "source": "public",
+        "fallback_reason": "request_failed" if mode == "elite" else None,
+    }
+    if mode == "elite":
+        assert get.call_args.kwargs["params"]["auth"] == "FICTIONAL-CLI-KEY"
+    else:
+        get.assert_not_called()
+    assert "FICTIONAL-CLI-KEY" not in output.out + output.err

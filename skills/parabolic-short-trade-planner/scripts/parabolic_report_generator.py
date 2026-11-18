@@ -9,7 +9,7 @@ against in-memory fixtures without any network dependency.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SCHEMA_VERSION = "1.0"
 SKILL_NAME = "parabolic-short-trade-planner"
@@ -17,7 +17,7 @@ PHASE = "screen"
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    return datetime.now(UTC).astimezone().isoformat(timespec="seconds")
 
 
 def render_candidate(
