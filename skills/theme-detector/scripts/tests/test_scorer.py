@@ -183,7 +183,7 @@ class TestScoreTheme:
             lifecycle_stage="Trending",
             direction="bullish",
             confidence="Medium",
-            data_mode="FMP-only",
+            data_mode="FINVIZ-Public+FMP",
         )
         assert result["heat_label"] == "Hot"
 
@@ -217,6 +217,6 @@ class TestScoreTheme:
                 lifecycle_stage="Trending",
                 direction="bullish",
                 confidence="Medium",
-                data_mode="FMP-only",
+                data_mode="FINVIZ-Public+FMP",
             )
             assert result["heat_label"] == expected_label

@@ -101,13 +101,13 @@ class TestFetchPerformance:
         monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", False)
 
         assert get_sector_performance() == []
-        assert "finvizfinance not installed" in capsys.readouterr().err
+        assert "public group data unavailable" in capsys.readouterr().err
 
     def test_industry_performance_returns_empty_when_dependency_missing(self, monkeypatch, capsys):
         monkeypatch.setattr(finviz_performance_client, "HAS_FINVIZFINANCE", False)
 
         assert get_industry_performance() == []
-        assert "finvizfinance not installed" in capsys.readouterr().err
+        assert "public group data unavailable" in capsys.readouterr().err
 
     def test_sector_performance_fetches_sector_group(self, monkeypatch):
         perf = _Performance()
@@ -154,8 +154,8 @@ class TestFetchPerformance:
         assert get_sector_performance() == []
         assert get_industry_performance() == []
         err = capsys.readouterr().err
-        assert "Failed to fetch sector performance" in err
-        assert "Failed to fetch industry performance" in err
+        assert "public group fetch failed" in err
+        assert "public group fetch failed" in err
 
 
 class TestCapOutlierPerformances:

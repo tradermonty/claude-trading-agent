@@ -465,8 +465,8 @@ def main():
     data_mode = determine_data_mode(fmp_available, finviz_mode == "elite")
 
     print("Theme Detector starting...", file=sys.stderr)
-    print(f"  Data mode: {data_mode}", file=sys.stderr)
-    print(f"  FINVIZ mode: {finviz_mode}", file=sys.stderr)
+    print(f"  Requested data mode: {data_mode}", file=sys.stderr)
+    print(f"  Requested FINVIZ mode: {finviz_mode}", file=sys.stderr)
     print(f"  FMP API: {'available' if fmp_available else 'not available'}", file=sys.stderr)
     print(f"  Max themes: {args.max_themes}", file=sys.stderr)
     print(f"  Max stocks/theme: {args.max_stocks_per_theme}", file=sys.stderr)
@@ -485,12 +485,21 @@ def main():
     # Step 1: Fetch FINVIZ industry performance
     # -----------------------------------------------------------------------
     print("Fetching FINVIZ industry performance...", file=sys.stderr)
-    raw_industries = get_industry_performance()
+    industry_provenance = {}
+    raw_industries = get_industry_performance(
+        api_key=(args.finviz_api_key or None) if finviz_mode == "elite" else "",
+        provenance=industry_provenance,
+    )
     if not raw_industries:
         print("ERROR: No industry data from FINVIZ. Exiting.", file=sys.stderr)
         sys.exit(1)
 
     metadata["data_sources"]["finviz_industries"] = len(raw_industries)
+    metadata["data_sources"]["finviz_industry_performance"] = industry_provenance
+    metadata["finviz_mode"] = industry_provenance["source"]
+    data_mode = determine_data_mode(fmp_available, industry_provenance["source"] == "elite")
+    metadata["data_mode"] = data_mode
+    print(f"  Industry source: {industry_provenance['source']}", file=sys.stderr)
     print(f"  Got {len(raw_industries)} industries", file=sys.stderr)
 
     # Convert decimal to percentage, filter outliers, and add sector info
