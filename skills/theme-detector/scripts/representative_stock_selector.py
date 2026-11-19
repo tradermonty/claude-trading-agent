@@ -13,6 +13,7 @@ import csv
 import io
 import logging
 import math
+import re
 import time
 
 try:
@@ -28,6 +29,14 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 _MAX_CONSECUTIVE_FAILURES = 3
+
+# FMP ETF holdings include foreign listings such as "CCO.TO", "BP.L" or
+# "7203.T". FMP writes US share classes with a dash ("BRK-B"), so only plain
+# 1-5 letter tickers with an optional dash class are kept.
+_US_TICKER = re.compile(r"^[A-Z]{1,5}(-[A-Z]{1,2})?$")
+
+# Fields that describe where a merged row's data came from; they move together.
+_IDENTITY_FIELDS = ("source", "market_cap", "holding_value", "change", "volume")
 
 # ---------------------------------------------------------------------------
 # FINVIZ filter mappings
@@ -531,17 +540,24 @@ class RepresentativeStockSelector:
                 return []
 
             stocks: list[dict] = []
-            for item in data[:limit]:
-                ticker = item.get("asset", "").strip()
-                if not ticker:
+            for item in data:
+                if len(stocks) >= limit:
+                    break
+                ticker = str(item.get("asset") or "").strip()
+                if not _US_TICKER.match(ticker):
                     continue
                 stocks.append(
                     {
                         "symbol": ticker,
                         "source": "etf_holdings",
-                        "market_cap": _parse_market_cap(item.get("marketValue")),
+                        # FMP marketValue is the ETF's position value, not the
+                        # issuer's capitalization: keep it apart and leave
+                        # market_cap at the unknown sentinel.
+                        "market_cap": 0,
+                        "holding_value": _parse_market_cap(item.get("marketValue")),
                         "change": None,
                         "volume": None,
+                        "composite_score": 0,
                         "matched_industries": [],
                         "reasons": [f"Held by {etf_symbol}"],
                     }
@@ -673,16 +689,29 @@ class RepresentativeStockSelector:
         for c in candidates:
             sym = c["symbol"]
             if sym in merged:
+                row = merged[sym]
                 for ind in c.get("matched_industries", []):
-                    if ind not in merged[sym]["matched_industries"]:
-                        merged[sym]["matched_industries"].append(ind)
-                merged[sym]["reasons"].extend(c.get("reasons", []))
-                merged[sym]["composite_score"] = max(
-                    merged[sym]["composite_score"],
-                    c.get("composite_score", 0),
-                )
+                    if ind not in row["matched_industries"]:
+                        row["matched_industries"].append(ind)
+                row["reasons"].extend(c.get("reasons", []))
+                # ETF-holdings rows are unscored; treat a missing score as 0.
+                # The higher-scored row also supplies source and market data.
+                if c.get("composite_score", 0) > row.get("composite_score", 0):
+                    row["composite_score"] = c["composite_score"]
+                    for field in _IDENTITY_FIELDS:
+                        if field in c:
+                            row[field] = c[field]
+                        else:
+                            row.pop(field, None)
             else:
-                merged[sym] = dict(c)
+                # Copy the lists: candidates are shared with the industry and
+                # ETF caches, which later themes reuse.
+                merged[sym] = {
+                    **c,
+                    "composite_score": c.get("composite_score", 0),
+                    "matched_industries": list(c.get("matched_industries", [])),
+                    "reasons": list(c.get("reasons", [])),
+                }
 
         ranked = sorted(
             merged.values(),
