@@ -291,7 +291,12 @@ def parse_args() -> argparse.Namespace:
         default="small",
         help="Minimum market cap for dynamic stock selection (default: small=$300mln+)",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    # An unset shell variable expands to "" (e.g. --fmp-api-key "$FMP_API_KEY");
+    # treat blank keys as absent so data mode and fallbacks stay truthful.
+    args.fmp_api_key = (args.fmp_api_key or "").strip() or None
+    args.finviz_api_key = (args.finviz_api_key or "").strip() or None
+    return args
 
 
 # ---------------------------------------------------------------------------

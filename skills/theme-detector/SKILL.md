@@ -54,71 +54,88 @@ This skill detects and ranks trending market themes by analyzing cross-sector mo
 
 ### Step 1: Verify Requirements
 
-Check for required API keys and dependencies:
-
-```bash
-# Check for FINVIZ Elite API key (optional but recommended)
-echo $FINVIZ_API_KEY
-
-# Check for FMP API key (optional, used for valuation metrics)
-echo $FMP_API_KEY
-```
-
 **Requirements:**
-- **Python 3.12+** with `requests`, `beautifulsoup4`, `lxml`, `pandas`, `numpy`, `yfinance`
+- **Python 3.10+** with `requests`, `beautifulsoup4`, `lxml`, `pandas`, `numpy`, `yfinance`.
+  The Managed Agents sandbox runs Python 3.11.
+- **`finvizfinance>=1.5.0`** is required whenever `FINVIZ_API_KEY` is not set.
+  Public FINVIZ is then the only source of industry data, and the script exits
+  with `ERROR: No industry data from FINVIZ` if the package is missing.
 - **FINVIZ Elite API key** (recommended for full industry coverage and speed)
-- **FMP API key** (optional, for P/E ratio valuation data)
+- **FMP API key** (optional, for P/E ratio valuation data and the ETF-holdings fallback)
 - Without FINVIZ Elite, the skill uses public FINVIZ scraping (limited to ~20 stocks per industry, slower rate limits)
 
 **Optional dependencies:**
-- `finvizfinance>=1.5.0` (for public FINVIZ fallback; Elite uses `requests`)
 - `PyYAML` (for `--themes-config` custom themes)
 
-**Installation:**
+**Installation (required before the first run in a new sandbox):**
 ```bash
-pip install requests beautifulsoup4 lxml pandas numpy yfinance "finvizfinance>=1.5.0"
+pip install -q requests beautifulsoup4 lxml pandas numpy yfinance "finvizfinance>=1.5.0"
+```
+
+**API keys:** the script reads `FMP_API_KEY` and `FINVIZ_API_KEY` from the
+environment. If a key was given to you in your instructions rather than as an
+environment variable, `export` it in the same command that runs the script
+(see Step 2). Never pass keys as command-line flags, and never echo, log or
+print key values. To check which keys are available:
+
+```bash
+[ -n "$FMP_API_KEY" ] && echo "FMP_API_KEY: set" || echo "FMP_API_KEY: not set"
+[ -n "$FINVIZ_API_KEY" ] && echo "FINVIZ_API_KEY: set" || echo "FINVIZ_API_KEY: not set"
 ```
 
 ### Step 2: Execute Theme Detection Script
 
-Run the main detection script:
+Run the main detection script. Always pass `--dynamic-stocks`:
 
 ```bash
 python3 skills/theme-detector/scripts/theme_detector.py \
+  --dynamic-stocks \
   --output-dir reports/
 ```
 
-**Script Options:**
+When the FMP key is only in your instructions, prefix the same command with
+`export FMP_API_KEY='<key>' &&` so the script can see it.
+
+`--dynamic-stocks` selects representative stocks from live FINVIZ data
+(Elite, then public), then FMP ETF holdings, with the theme's static list as
+the last resort. Without the flag every representative stock comes from the
+static list with `market_cap=0`, which is placeholder data, not a measurement.
+Each stock keeps its actual `source` (`finviz_elite`, `finviz_public`,
+`etf_holdings` or `static`); report it. `etf_holdings` rows carry
+`market_cap=0` and the ETF position value in `holding_value`.
+
+**Script Options** (every variant keeps `--dynamic-stocks` unless static
+placeholders are explicitly wanted):
 ```bash
-# Full run (public FINVIZ mode, no API key required)
-python3 skills/theme-detector/scripts/theme_detector.py \
-  --output-dir reports/
-
-# With FINVIZ Elite API key
-python3 skills/theme-detector/scripts/theme_detector.py \
-  --finviz-api-key $FINVIZ_API_KEY \
-  --output-dir reports/
-
-# With FMP API key for enhanced stock data
-python3 skills/theme-detector/scripts/theme_detector.py \
-  --fmp-api-key $FMP_API_KEY \
-  --output-dir reports/
-
 # Custom limits
 python3 skills/theme-detector/scripts/theme_detector.py \
+  --dynamic-stocks \
   --max-themes 5 \
   --max-stocks-per-theme 10 \
   --output-dir reports/
 
-# Explicit FINVIZ mode
+# Explicit FINVIZ mode (public suppresses Elite even when FINVIZ_API_KEY is set)
 python3 skills/theme-detector/scripts/theme_detector.py \
+  --dynamic-stocks \
   --finviz-mode public \
+  --output-dir reports/
+
+# Larger minimum market cap for representative stocks
+python3 skills/theme-detector/scripts/theme_detector.py \
+  --dynamic-stocks \
+  --dynamic-min-cap mid \
+  --output-dir reports/
+
+# Static representative stocks only (faster; placeholder market caps)
+python3 skills/theme-detector/scripts/theme_detector.py \
   --output-dir reports/
 ```
 
 **Expected Execution Time:**
-- FINVIZ Elite mode: ~2-3 minutes (14+ themes)
-- Public FINVIZ mode: ~5-8 minutes (rate-limited scraping)
+- Public FINVIZ with `--dynamic-stocks`: about 1 minute measured in the
+  Managed Agents sandbox on 2026-11-18. It can be longer when FINVIZ is slow.
+- Static representative stocks only: about 10 seconds in the same sandbox.
+- FINVIZ Elite mode: not measured in the sandbox.
 
 ### Step 3: Read and Parse Detection Results
 

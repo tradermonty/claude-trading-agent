@@ -24,7 +24,14 @@ its existing FMP ETF holdings endpoint and provider order.
 - Selection order: Elite, public Finviz, FMP ETF holdings, static config.
   Each stock retains its actual `source`: `finviz_elite`, `finviz_public`,
   `etf_holdings`, or `static`. FMP marketValue is the holding's value,
-  not the issuer's market capitalization.
+  not the issuer's market capitalization, so it is stored as
+  `holding_value` and `market_cap` stays 0. Only US-style tickers from ETF
+  holdings are kept: 1-5 capital letters with an optional dash class such
+  as `BRK-B`. Listings like `CCO.TO`, `BP.L` or `7203.T` are skipped.
+  Unscored duplicates merge with a score of 0, and the higher-scored row
+  supplies the source and market data (#108).
+- SKILL.md runs with `--dynamic-stocks`, so the selector above is the
+  production path (#110). Without the flag, stocks come from the static list.
 
 ## Group data and provenance
 
